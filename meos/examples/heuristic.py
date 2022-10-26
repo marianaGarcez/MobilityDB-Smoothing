@@ -129,12 +129,9 @@ def _filter_array(lat_lng_dtime_other, max_speed, include_loops, speed, max_loop
     i = 0
 
     while i < lX - 2:
+        
+        dt = utils.diff_seconds(lat_lng_dtime_other[i][2], lat_lng_dtime_other[i + 1][2])
 
-        try:
-            dt = utils.diff_seconds(lat_lng_dtime_other[i][2], lat_lng_dtime_other[i + 1][2])
-
-        except IndexError:
-            pass
         try:
             if distfunc(lat_lng_dtime_other[i][:2], lat_lng_dtime_other[i + 1][:2]) / dt * 3600. > max_speed:
                 del lat_lng_dtime_other[i + 1]

@@ -41,6 +41,8 @@
 #include "general/timetypes.h"
 
 /*****************************************************************************/
+//auxiliary function
+double getDistance(double, double);
 
 /* General functions */
 TSequence filter_trajectory_heuristic(TSequence, int ,int ,int ,int ,float );

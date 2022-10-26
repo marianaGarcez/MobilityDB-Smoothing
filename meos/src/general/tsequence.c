@@ -1634,7 +1634,7 @@ tsequence_out(const TSequence *seq, Datum arg)
  * @sqlfunc tbool_seq(), tint_seq(), tfloat_seq(), ttext_seq(), etc.
  */
 TSequence *
-tsequence_make(const TInstant **instants, int count, int maxcount,
+const TInstant **instants, int count, int maxcount,
   bool lower_inc, bool upper_inc, interpType interp, bool normalize)
 {
   tsequence_make_valid(instants, count, lower_inc, upper_inc, interp);

@@ -35,6 +35,8 @@
 
 /* C */
 #include <assert.h>
+#define _USE_MATH_DEFINES // for C
+#include <math.h>
 /* PostgreSQL */
 #include <postgres.h>
 #include <utils/timestamp.h>
@@ -47,7 +49,35 @@
 #include "general/time_ops.h"
 #include "general/temporal_parser.h"
 
+double getDistance(double loc1, double loc2){
+    //"Haversine formula - give coordinates as (lat_decimal,lon_decimal) tuples"
+    double earthradius = 6371.0;
+    double lat1 = loc1, lon1 = loc1;
+    double lat2 = loc2, lon2 = loc2;
+    
+    //convert to radians
+    lon1 = lon1 * M_PI / 180.0;
+    lon2 = lon2 * M_PI / 180.0;
+    lat1 = lat1 * M_PI / 180.0;
+    lat2 = lat2 * M_PI / 180.0;
 
+    //haversine formula
+    double dlon = lon2 - lon1;
+    double dlat = lat2 - lat1;
+    double a,c,km;
+
+    a = (sin(dlat/2))**2 + cos(lat1) * cos(lat2) * (sin(dlon/2.0))**2;
+    c = 2.0 * atan2(sqrt(a), sqrt(1.0-a));
+    km = earthradius * c;
+    return km;
+}
+
+double diff_seconds(TInstant t0, TInstant t1){
+    Datum t_0= t0.value;
+    Datum t_1= t1.value;
+    //TODO set seconds
+    return (t_1 - t_0)*60;
+}
 // For each individual trajectory, 
 //filter out the trajectory points that are considered noise 
 //or outliers
@@ -56,9 +86,8 @@
 
 TSequence filter_trajectory_heuristic(TSequence t, int max_speed, int include_loops, int speed, int max_loop, float max_ratio){
     /*
-        tdf : TrajDataFrame
-        the trajectories of the individuals.
-
+        Inputs:
+        one trajectory at a time
         max_speed: float, optional
         delete a trajectory point if the speed (in km/h) from the previous point is higher than `max_speed_kmh`. The default is `500.0`.
 
@@ -80,13 +109,39 @@ TSequence filter_trajectory_heuristic(TSequence t, int max_speed, int include_lo
         return clean trajectory
     */
 
-   // sort by uid and datatime 
-    
+    /*
+    Delete points from raw trajectory `data` if:
 
-   //if utils.is_multi_user(tdf):
-        //groupby.append(constants.UID)
-    //if utils.is_multi_trajectory(tdf):
-        //groupby.append(constants.TID)
+    1. The speed from previous point is > `max_speed` km/h
+
+    2. Within the next `max_loop` points the user has come back
+            of `ratio_max`% of the maximum distance reached, AND s/he travelled
+            at a speed > `speed` km/h
+    */
+    //tamanho da trajetoria
+    int i=0;
+    int32 lx;
+    double dt;
+
+    //can I know the size of a trajectory?
+    lx = t.count;
+
+    //TInstant tint= t.period;
+    printf("size of trajectory %d instants",lx);
+    printf("Structure Tsequence temptype %d, subtype %d, flags %d, count %d, maxcount %d, bbxsize %d, period %s\n ",t.temptype,t.subtype, t.flags,t.count, t.maxcount, t.bbxsize, t.period);
+
+    //printf("Structure Tinstant header %d,temptype %d, subtype %d, flags %d, \n", )
+    //while (i < lx - 2) {
+        //dt = diff_seconds(t.);
+        //if distfunc(t[i][:2], t[i + 1][:2]) / dt * 3600. > max_speed{
+                //delete point (TInstant from TSequence)
+                
+            //lx = t.count;
+        
+        //}
+
+    //}
+
 
     return t;
 }
