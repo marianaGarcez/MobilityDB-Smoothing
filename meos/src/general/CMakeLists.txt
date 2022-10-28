@@ -23,6 +23,7 @@ add_library(general OBJECT
   temporal_similarity.c
   temporal_tile.c
   temporal_util.c
+  temporal_outlier.c
   time_ops.c
   timestampset.c
   tinstant.c

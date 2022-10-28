@@ -142,6 +142,59 @@ Tpoint_simplify(PG_FUNCTION_ARGS)
   PG_RETURN_POINTER(result);
 }
 
+
+
+PG_FUNCTION_INFO_V1(Tfloat_outlier);
+/**
+ * Detect outliers in a the temporal number using a heuritic
+ * based algorithm.
+ */
+PGDLLEXPORT Datum
+Tfloat_outlier(PG_FUNCTION_ARGS)
+{
+  Temporal *temp = PG_GETARG_TEMPORAL_P(0);
+  double eps_dist = PG_GETARG_FLOAT8(1);
+  //TODO change parameters 
+  int max_speed = 500;
+  int include_loops = false;
+  int speed = 5;
+  int max_loop = 6;
+  float max_ratio = 0.25;
+
+  /* There is no synchronized distance for temporal floats */
+  Temporal *result = temporal_outlier(temp, eps_dist, false,max_speed,include_loops,speed,,max_loop,max_ratio);
+  PG_FREE_IF_COPY(temp, 0);
+  PG_RETURN_POINTER(result);
+}
+
+
+
+PG_FUNCTION_INFO_V1(Tpoint_outlier);
+/**
+ * Detect outliers in a the temporal sequence (set) using a heuritic
+ * based algorithm.
+ */
+PGDLLEXPORT Datum
+Tpoint_outlier(PG_FUNCTION_ARGS)
+{
+  //TODO change parameters 
+  Temporal *temp = PG_GETARG_TEMPORAL_P(0);
+  double eps_dist = PG_GETARG_FLOAT8(1);
+  bool synchronized = false;
+  int max_speed = 500;
+  int include_loops = false;
+  int speed = 5;
+  int max_loop = 6;
+  float max_ratio = 0.25;
+
+  if (PG_NARGS() > 2 && ! PG_ARGISNULL(2))
+    synchronized = PG_GETARG_BOOL(2);
+  Temporal *result = temporal_outlier(temp, eps_dist, synchronized,max_speed,include_loops,speed,,max_loop,max_ratio);
+  PG_FREE_IF_COPY(temp, 0);
+  PG_RETURN_POINTER(result);
+}
+
+
 /*****************************************************************************
  * Mapbox Vector Tile functions for temporal points.
  *****************************************************************************/

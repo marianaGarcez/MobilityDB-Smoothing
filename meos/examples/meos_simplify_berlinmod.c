@@ -105,12 +105,16 @@ int main(void)
     int read = fscanf(file, "%d,%10[^,],%d,%160000[^,],%100000[^\n]\n",
       &trips[i].vehicle, date_buffer, &trips[i].seq, trip_buffer,
       geo_buffer);
+    
     /* Transform the string representing the date into a date value */
     trips[i].day = pg_date_in(date_buffer);
+    printf("reading file1\n");
     /* Transform the string representing the trip into a temporal value */
     trips[i].trip = temporal_from_hexwkb(trip_buffer);
+    printf("reading file2\n");
     /* Transform the string representing the trajectory into a geometry value */
     trips[i].trajectory = gserialized_in(geo_buffer, -1);
+    printf("reading file3\n");
 
     if (read == 5)
       i++;

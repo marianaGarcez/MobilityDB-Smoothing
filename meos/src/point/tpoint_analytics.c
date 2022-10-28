@@ -816,6 +816,8 @@ tfloatseq_findsplit(const TSequence *seq, int i1, int i2, int *split,
   return;
 }
 
+
+
 /**
  * Return a negative or a positive value depending on whether the first number
  * is less than or greater than the second one
@@ -1028,10 +1030,8 @@ tpointseq_findsplit(const TSequence *seq, int i1, int i2, bool synchronized,
 
 /*****************************************************************************/
 
-static TSequence *
-tsequence_simplify(const TSequence *seq, double eps_dist, bool synchronized,
-  uint32_t minpts)
-{
+static TSequence *tsequence_simplify(const TSequence *seq, double eps_dist, bool synchronized,
+  uint32_t minpts){
   static size_t stack_size = 256;
   int *stack, *outlist; /* recursion stack */
   int stack_static[stack_size];
@@ -1762,3 +1762,178 @@ tpoint_AsMVTGeom(const Temporal *temp, const STBOX *bounds, int32_t extent,
 }
 
 /*****************************************************************************/
+/* ****************************************************************************
+* Outlier detection Methods 
+**************************************************************************** */
+
+static void tfloatseq_findOutlier(const TSequence *seq, int i1, int i2, int *split,double *dist){
+  return;
+}
+
+static void tpointseq_findOutlier(const TSequence *seq, int i1, int i2, bool synchronized,int *split, double *dist){
+   
+  return;
+}
+
+
+double getDistance(double loc1, double loc2){
+    //"Haversine formula - give coordinates as (lat_decimal,lon_decimal) tuples"
+    double earthradius = 6371.0;
+    double lat1 = loc1, lon1 = loc1;
+    double lat2 = loc2, lon2 = loc2;
+    
+    //convert to radians
+    lon1 = lon1 * M_PI / 180.0;
+    lon2 = lon2 * M_PI / 180.0;
+    lat1 = lat1 * M_PI / 180.0;
+    lat2 = lat2 * M_PI / 180.0;
+
+    //haversine formula
+    double dlon = lon2 - lon1;
+    double dlat = lat2 - lat1;
+    double a,c,km;
+
+    a = pow((sin(dlat/2)),2) + cos(lat1) * cos(lat2) * pow((sin(dlon/2.0)),2);
+    c = 2.0 * atan2(sqrt(a), sqrt(1.0-a));
+    km = earthradius * c;
+    return km;
+}
+
+double diff_seconds(TInstant t0, TInstant t1){
+    Datum t_0= t0.value;
+    Datum t_1= t1.value;
+    //TODO set seconds
+    return (t_1 - t_0)*60;
+}
+
+
+//TODO: add a filter based on the acceleration
+
+
+
+static TSequence * tsequence_filter_heuristic(const TSequence *seq, double eps_dist, bool synchronized,
+  uint32_t minpts,int max_speed, int include_loops, int speed, int max_loop, float max_ratio){
+
+  static size_t stack_size = 256;
+  int *stack, *outlist; /* recursion stack */
+  int stack_static[stack_size];
+  int outlist_static[stack_size];
+  int sp = -1; /* recursion stack pointer */
+  int i1, split;
+  uint32_t outn = 0;
+  uint32_t i;
+  double dist;
+
+  assert(MOBDB_FLAGS_GET_LINEAR(seq->flags));
+
+  assert(seq->temptype == T_TFLOAT || tgeo_type(seq->temptype));
+
+  /* Do not try to detect outlier really short things */
+  if (seq->count < 3)
+    return tsequence_copy(seq);
+
+  /* Only heap allocate book-keeping arrays if necessary */
+  if ((unsigned int) seq->count > stack_size){
+    stack = palloc(sizeof(int) * seq->count);
+    outlist = palloc(sizeof(int) * seq->count);
+  }
+  else{
+    stack = stack_static;
+    outlist = outlist_static;
+  }
+
+  i1 = 0;
+  stack[++sp] = seq->count - 1;
+
+  /* Add first point to output list */
+  outlist[outn++] = 0;
+  do {
+
+    //
+    /// change here 
+    ///
+
+    if (seq->temptype == T_TFLOAT)
+      /* There is no synchronized distance for temporal floats */
+      tfloatseq_findOutlier(seq, i1, stack[sp], &split, &dist);
+
+    else /* tgeo_type(seq->temptype) */
+      tpointseq_findOutlier(seq, i1, stack[sp], synchronized, &split, &dist);
+
+    //chnage to outlier detection  
+    bool dosplit = (dist >= 0 && (dist > eps_dist || outn + sp + 1 < minpts));
+    
+    if (dosplit)
+      stack[++sp] = split;
+    else{
+      outlist[outn++] = stack[sp];
+      i1 = stack[sp--];
+    }
+
+    //
+    /// to here 
+    ///
+
+  }
+  while (sp >= 0);
+
+  /* Put list of retained points into order */
+  qsort(outlist, outn, sizeof(int), int_cmp);
+
+  /* Create new TSequence */
+  const TInstant **instants = palloc(sizeof(TInstant *) * outn);
+  for (i = 0; i < outn; i++)
+    instants[i] = tsequence_inst_n(seq, outlist[i]);
+
+  TSequence *result = tsequence_make(instants, outn, outn,seq->period.lower_inc, seq->period.upper_inc, LINEAR, NORMALIZE);
+  pfree(instants);
+
+  /* Only free if arrays are on heap */
+  if (stack != stack_static)
+    pfree(stack);
+  if (outlist != outlist_static)
+    pfree(outlist);
+
+  return result;
+}
+
+static TSequenceSet *tsequenceset_filter_heuristic(const TSequenceSet *ss, double eps_dist,
+  bool synchronized, uint32_t minpts,int max_speed, int include_loops, int speed, int max_loop, float max_ratio){
+  TSequence **sequences = palloc(sizeof(TSequence *) * ss->count);
+
+  for (int i = 0; i < ss->count; i++){
+    const TSequence *seq = tsequenceset_seq_n(ss, i);
+    sequences[i] = tsequence_filter_heuristic(seq, eps_dist, synchronized, minpts,max_speed,include_loops,speed,max_loop, max_ratio);
+  }
+  return tsequenceset_make_free(sequences, ss->count, NORMALIZE);
+}
+
+
+
+/**
+ * @brief Detect outliers in the trajectory
+ */
+
+ /**
+ * @ingroup
+ * @brief Detect outliers in a the temporal type using a heuritic
+ * based algorithm.
+ * @sqlfunc 
+ */
+Temporal * temporal_outlier(const Temporal *temp, double eps_dist, bool synchronized,int max_speed, int include_loops, int speed, int max_loop, float max_ratio){
+  Temporal *result;
+  
+  ensure_valid_tempsubtype(temp->subtype);
+  if (temp->subtype == TINSTANT || ! MOBDB_FLAGS_GET_LINEAR(temp->flags))
+    result = temporal_copy(temp);
+
+  else if (temp->subtype == TSEQUENCE)
+    result = (Temporal *) tsequence_filter_heuristic((TSequence *) temp, eps_dist,
+      synchronized, 2,max_speed,include_loops, speed, max_loop, max_ratio);
+
+  else /* temp->subtype == TSEQUENCESET */
+    result = (Temporal *) tsequenceset_filter_heuristic((TSequenceSet *) temp,
+      eps_dist, synchronized, 2,max_speed,include_loops, speed,max_loop, max_ratio);
+
+  return result;
+}

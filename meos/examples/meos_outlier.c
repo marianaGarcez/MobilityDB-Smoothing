@@ -55,7 +55,18 @@ typedef struct{
 typedef struct{
   long int MMSI;
   TInstant *instants[MAX_INSTANTS];
+
 } MMSI_instants;
+
+
+typedef struct
+{
+  double SOG;
+  Timestamp T;
+  long int MMSI;
+  Temporal *trip;
+  GSERIALIZED *trajectory;
+} trip_record;
 
 /* Main program */
 int main(void){
@@ -63,6 +74,7 @@ int main(void){
   MMSI_instants trip_instants[MAX_TRIPS];
 
   TSequence *trips[MAX_TRIPS];
+  trip_record *tripsrecords[MAX_TRIPS];
   /* Number of instants for each trip */
   int numinstants[MAX_TRIPS] = {0};
   /* Number of ships */
@@ -71,7 +83,7 @@ int main(void){
   int i, j;
 
   /* Initialize MEOS */
-  meos_initialize(NULL);
+  meos_initialize();
 
   /* Substitute the full file path in the first argument of fopen */
   FILE *file = fopen("aisinput.csv", "r");
@@ -105,7 +117,7 @@ int main(void){
       nulls++;
     }
 
-    if (ferror(file){
+    if (ferror(file)){
       printf("Error reading file\n");
       fclose(file);
       return 1;
@@ -134,8 +146,11 @@ int main(void){
     char *t_out = pg_timestamp_out(rec.T);
     sprintf(buffer, "SRID=4326;Point(%lf %lf)@%s+00", rec.Longitude,
       rec.Latitude, t_out);
+
     TInstant *inst = (TInstant *) tgeogpoint_in(buffer);
+
     trip_instants[ship].instants[numinstants[ship]++] = inst;
+
   } while (!feof(file));
 
   printf("\n%d records read.\n%d incomplete records ignored.\n",
@@ -161,10 +176,8 @@ int main(void){
     int speed = 5;
     int max_loop = 6;
     float max_ratio= 0.25;
-
-    //tsequence_copy
     
-    ftrips = filter_trajectory_heuristic(trips,max_speed,include_loops,speed,max_loop,max_ratio);
+    tsequence_filter_heuristic(trips,3,1,8,max_speed,include_loops,speed,max_loop,max_ratio);
 
   
     /* ****************************************************************************

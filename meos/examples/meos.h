@@ -37,10 +37,45 @@
 /* C */
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdlib.h>
+
 /* PostgreSQL */
-#include "../postgres/postgres.h"
-#include "../postgres/utils/timestamp_def.h"
-#include "../postgres/utils/date.h"
+typedef uintptr_t Datum;
+
+typedef signed char int8;
+typedef signed short int16;
+typedef signed int int32;
+typedef long int int64;
+
+typedef unsigned char uint8;
+typedef unsigned short uint16;
+typedef unsigned int uint32;
+typedef unsigned long int uint64;
+
+typedef int32 DateADT;
+typedef int64 TimeADT;
+typedef int64 Timestamp;
+typedef int64 TimestampTz;
+typedef int64 TimeOffset;
+typedef int32 fsec_t;      /* fractional seconds (in microseconds) */
+
+typedef struct
+{
+  TimeOffset time;  /* all time units other than days, months and years */
+  int32 day;        /* days, after time for alignment */
+  int32 month;      /* months and years, after time for alignment */
+} Interval;
+
+typedef struct varlena
+{
+  char vl_len_[4];  /* Do not touch this field directly! */
+  char vl_dat[];    /* Data content is here */
+} varlena;
+
+typedef varlena text;
+typedef struct varlena bytea;
+
+
 /* PostGIS */
 #include "liblwgeom.h"
 
@@ -1492,7 +1527,6 @@ extern int touches_tpoint_geo(const Temporal *temp, const GSERIALIZED *gs);
 extern Temporal *ttouches_tpoint_geo(const Temporal *temp, const GSERIALIZED *gs, bool restr, bool atvalue);
 
 /*****************************************************************************/
-
 /* Time functions for temporal types */
 
 extern bool temporal_intersects_period(const Temporal *temp, const Period *p);
@@ -1507,17 +1541,7 @@ extern bool temporal_intersects_timestampset(const Temporal *temp, const Timesta
 extern double tnumber_integral(const Temporal *temp);
 extern double tnumber_twavg(const Temporal *temp);
 extern GSERIALIZED *tpoint_twcentroid(const Temporal *temp);
-
 /*****************************************************************************/
-
-
-/* Outlier functions for temporal types */
-
-extern TSequence filter_trajectory_heuristic(TSequence, int ,int ,int ,int ,float );
-extern TSequenceSet filter_trajectory_heuristic_set(TSequenceSet, int, int, int, int, float);
-extern TSequence Kalman_filter_CV(TSequence,float, int);
-extern TSequenceSet Kalman_filter_CV_set(TSequenceSet,float, int);
-
 /*****************************************************************************/
 
 /* Tile functions for temporal types */
@@ -1548,6 +1572,7 @@ Temporal *temporal_simplify(const Temporal *temp, double eps_dist, bool synchron
 bool tpoint_AsMVTGeom(const Temporal *temp, const STBOX *bounds, int32_t extent,
   int32_t buffer, bool clip_geom, GSERIALIZED **geom, int64 **timesarr, int *count);
 bool tpoint_to_geo_measure(const Temporal *tpoint, const Temporal *measure, bool segmentize, GSERIALIZED **result);
+Temporal * temporal_outlier(const Temporal *temp, double eps_dist, bool synchronized,int max_speed, int include_loops, int speed, int max_loop, float max_ratio);
 
 /*****************************************************************************/
 
