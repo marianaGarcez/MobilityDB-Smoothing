@@ -1538,7 +1538,8 @@ Temporal *temporal_simplify(const Temporal *temp, double eps_dist, bool synchron
 bool tpoint_AsMVTGeom(const Temporal *temp, const STBOX *bounds, int32_t extent,
   int32_t buffer, bool clip_geom, GSERIALIZED **geom, int64 **timesarr, int *count);
 bool tpoint_to_geo_measure(const Temporal *tpoint, const Temporal *measure, bool segmentize, GSERIALIZED **result);
-Temporal * temporal_outlier(const Temporal *temp, double eps_dist, bool synchronized,int max_speed, int include_loops, int speed, int max_loop, float max_ratio);
+Temporal * temporal_outlierheuristic(const Temporal *temp, double eps_dist, bool synchronized,int max_speed);
+Temporal * temporal_outlierkf(const Temporal *temp, float process_noise_std, int measurement_noise_std);
 
 /*****************************************************************************/
 

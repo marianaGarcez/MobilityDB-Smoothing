@@ -97,14 +97,26 @@ AS 'MODULE_PATHNAME', 'Tpoint_simplify'
 LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
 
 
-CREATE FUNCTION simplify(tfloat, float8)
+CREATE FUNCTION outlierh(tfloat, float8)
 RETURNS tfloat
-AS 'MODULE_PATHNAME', 'Tfloat_outlier'
+AS 'MODULE_PATHNAME', 'Tfloat_outlierh'
 LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
 
-CREATE FUNCTION simplify(tgeompoint, float8, boolean DEFAULT FALSE)
+
+CREATE FUNCTION outlierh(tgeompoint, float8, boolean DEFAULT FALSE)
 RETURNS tgeompoint
-AS 'MODULE_PATHNAME', 'Tpoint_outlier'
+AS 'MODULE_PATHNAME', 'Tpoint_outlierh'
+LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+
+
+CREATE FUNCTION outlierkf(tfloat, float8)
+RETURNS tfloat
+AS 'MODULE_PATHNAME', 'Tfloat_outlierkf'
+LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+
+CREATE FUNCTION outlierkf(tgeompoint, float8, boolean DEFAULT FALSE)
+RETURNS tgeompoint
+AS 'MODULE_PATHNAME', 'Tpoint_outlierkf'
 LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
 
 

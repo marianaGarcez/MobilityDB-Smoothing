@@ -1766,12 +1766,96 @@ tpoint_AsMVTGeom(const Temporal *temp, const STBOX *bounds, int32_t extent,
 * Outlier detection Methods 
 **************************************************************************** */
 
-static void tfloatseq_findOutlier(const TSequence *seq, int i1, int i2, int *split,double *dist){
+static void tfloatseq_findOutlier(const TSequence *seq, int i1, int i2, int *split,double *dist, int max_speed){
+  *split = i1;
+  *dist = -1;
+  if (i1 + 1 >= i2)
+    return;
+
+  const TInstant *start = tsequence_inst_n(seq, i1);
+  const TInstant *end = tsequence_inst_n(seq, i2);
+
+  double value1 = DatumGetFloat8(tinstant_value(start));
+  double value2 = DatumGetFloat8(tinstant_value(end));
+  double duration2 = (double) (end->t - start->t);
+
+  /* Loop for every instant between i1 and i2 */
+  const TInstant *inst1 = start;
+  for (int k = i1 + 1; k < i2; k++){
+
+    const TInstant *inst2 = tsequence_inst_n(seq, k);
+    double value = DatumGetFloat8(tinstant_value(inst2));
+
+    double distance = getDistance(value, value1);
+    double diffDuration = (double) (inst2->t - inst1->t); 
+    double d = distance / diffDuration * 3600;
+    
+    if (d > max_speed){
+      /* record the maximum */
+      *split = k;
+      *dist = d;
+    }
+  }
   return;
 }
 
-static void tpointseq_findOutlier(const TSequence *seq, int i1, int i2, bool synchronized,int *split, double *dist){
-   
+static void tpointseq_findOutlier(const TSequence *seq, int i1, int i2, bool synchronized,int *split, double *dist, int max_speed){
+  POINT2D p2k, p2_sync, p2a, p2b;
+  POINT3DZ p3k, p3_sync, p3a, p3b;
+  Datum value;
+  bool linear = MOBDB_FLAGS_GET_LINEAR(seq->flags);
+  bool hasz = MOBDB_FLAGS_GET_Z(seq->flags);
+  double d = -1;
+  *split = i1;
+  *dist = -1;
+  if (i1 + 1 >= i2)
+    return;
+
+  /* Initialization of values wrt instants i1 and i2 */
+  const TInstant *start = tsequence_inst_n(seq, i1);
+  const TInstant *end = tsequence_inst_n(seq, i2);
+  if (hasz){
+    p3a = datum_point3dz(tinstant_value(start));
+    p3b = datum_point3dz(tinstant_value(end));
+  }
+  else{
+    p2a = datum_point2d(tinstant_value(start));
+    p2b = datum_point2d(tinstant_value(end));
+  }
+
+  /* Loop for every instant between i1 and i2 */
+  for (int k = i1 + 1; k < i2; k++){
+    double d_tmp;
+    const TInstant *inst = tsequence_inst_n(seq, k);
+    if (hasz){
+      p3k = datum_point3dz(tinstant_value(inst));
+      if (synchronized){
+        value = tsegment_value_at_timestamp(start, end, linear, inst->t);
+        p3_sync = datum_point3dz(value);
+        d_tmp = dist3d_pt_pt(&p3k, &p3_sync);
+        pfree(DatumGetPointer(value));
+      }
+      else
+        d_tmp = dist3d_pt_seg(&p3k, &p3a, &p3b);
+    }
+    else{
+      p2k = datum_point2d(tinstant_value(inst));
+      if (synchronized){
+        value = tsegment_value_at_timestamp(start, end, linear, inst->t);
+        p2_sync = datum_point2d(value);
+        d_tmp = dist2d_pt_pt(&p2k, &p2_sync);
+        pfree(DatumGetPointer(value));
+      }
+      else
+        d_tmp = dist2d_pt_seg(&p2k, &p2a, &p2b);
+    }
+    if (d_tmp * 3600 > max_speed){
+      /* record the maximum */
+      d = d_tmp;
+      *split = k;
+    }
+  }
+  *dist = d;
   return;
 }
 
@@ -1799,21 +1883,15 @@ double getDistance(double loc1, double loc2){
     return km;
 }
 
-double diff_seconds(TInstant t0, TInstant t1){
-    Datum t_0= t0.value;
-    Datum t_1= t1.value;
-    //TODO set seconds
-    return (t_1 - t_0)*60;
+
+double frand() {
+    return 2*((rand()/(double)RAND_MAX) - 0.5);
 }
 
 
-//TODO: add a filter based on the acceleration
 
-
-
-static TSequence * tsequence_filter_heuristic(const TSequence *seq, double eps_dist, bool synchronized,
-  uint32_t minpts,int max_speed, int include_loops, int speed, int max_loop, float max_ratio){
-
+static TSequence * tsequence_filter_heuristic(const TSequence *seq, double eps_dist, bool synchronized,uint32_t minpts,int max_speed){
+  //TODO: add a filter based on the acceleration
   static size_t stack_size = 256;
   int *stack, *outlist; /* recursion stack */
   int stack_static[stack_size];
@@ -1849,18 +1927,14 @@ static TSequence * tsequence_filter_heuristic(const TSequence *seq, double eps_d
   outlist[outn++] = 0;
   do {
 
-    //
-    /// change here 
-    ///
-
     if (seq->temptype == T_TFLOAT)
       /* There is no synchronized distance for temporal floats */
-      tfloatseq_findOutlier(seq, i1, stack[sp], &split, &dist);
+      tfloatseq_findOutlier(seq, i1, stack[sp], &split, &dist,max_speed);
 
     else /* tgeo_type(seq->temptype) */
-      tpointseq_findOutlier(seq, i1, stack[sp], synchronized, &split, &dist);
+      tpointseq_findOutlier(seq, i1, stack[sp], synchronized, &split, &dist, max_speed);
 
-    //chnage to outlier detection  
+    //change to outlier detection  
     bool dosplit = (dist >= 0 && (dist > eps_dist || outn + sp + 1 < minpts));
     
     if (dosplit)
@@ -1869,11 +1943,6 @@ static TSequence * tsequence_filter_heuristic(const TSequence *seq, double eps_d
       outlist[outn++] = stack[sp];
       i1 = stack[sp--];
     }
-
-    //
-    /// to here 
-    ///
-
   }
   while (sp >= 0);
 
@@ -1897,30 +1966,94 @@ static TSequence * tsequence_filter_heuristic(const TSequence *seq, double eps_d
   return result;
 }
 
-static TSequenceSet *tsequenceset_filter_heuristic(const TSequenceSet *ss, double eps_dist,
-  bool synchronized, uint32_t minpts,int max_speed, int include_loops, int speed, int max_loop, float max_ratio){
+static TSequenceSet *tsequenceset_filter_heuristic(const TSequenceSet *ss, double eps_dist, bool synchronized, uint32_t minpts,int max_speed){
   TSequence **sequences = palloc(sizeof(TSequence *) * ss->count);
 
   for (int i = 0; i < ss->count; i++){
     const TSequence *seq = tsequenceset_seq_n(ss, i);
-    sequences[i] = tsequence_filter_heuristic(seq, eps_dist, synchronized, minpts,max_speed,include_loops,speed,max_loop, max_ratio);
+    sequences[i] = tsequence_filter_heuristic(seq, eps_dist, synchronized, minpts, max_speed);
   }
   return tsequenceset_make_free(sequences, ss->count, NORMALIZE);
 }
 
 
 
-/**
- * @brief Detect outliers in the trajectory
- */
+static TSequence* tsequence_filter_kf(const TSequence* t,float process_noise_std, int measurement_noise_std){
+
+    //initial values for the kalman filter
+    float x_est_last = 0;
+    float P_last = 0;
+    //the noise in the system
+    float Q = 0.022;
+    float R = 0.617;
+    
+    float K;
+    float P;
+    float P_temp;
+    float x_temp_est;
+    float x_est;
+    float z_measured; //the 'noisy' value we measured
+    float z_real = 0.5; //the ideal value we wish to measure
+    
+    srand(0);
+    
+    //initialize with a measurement
+    x_est_last = z_real + frand()*0.09;
+    
+    float sum_error_kalman = 0;
+    float sum_error_measure = 0;
+    
+    for (int i=0;i<30;i++) {
+        //do a prediction
+        x_temp_est = x_est_last;
+        P_temp = P_last + Q;
+        //calculate the Kalman gain
+        K = P_temp * (1.0/(P_temp + R));
+        //measure
+        z_measured = z_real + frand()*0.09; //the real measurement plus noise
+        //correct
+        x_est = x_temp_est + K * (z_measured - x_temp_est); 
+        P = (1- K) * P_temp;
+        //we have our new system
+        
+        printf("Ideal    position: %6.3f \n",z_real);
+        printf("Mesaured position: %6.3f [diff:%.3f]\n",z_measured,fabs(z_real-z_measured));
+        printf("Kalman   position: %6.3f [diff:%.3f]\n",x_est,fabs(z_real - x_est));
+        
+        sum_error_kalman += fabs(z_real - x_est);
+        sum_error_measure += fabs(z_real-z_measured);
+        
+        //update our last's
+        P_last = P;
+        x_est_last = x_est;
+    }
+    
+    printf("Total error if using raw measured:  %f\n",sum_error_measure);
+    printf("Total error if using kalman filter: %f\n",sum_error_kalman);
+    printf("Reduction in error: %d%% \n",100-(int)((sum_error_kalman/sum_error_measure)*100));
+    return t;
+}
+
+
+
+static TSequenceSet *tsequenceset_filter_kf(const TSequenceSet *ss,float process_noise_std, int measurement_noise_std){
+  TSequence **sequences = palloc(sizeof(TSequence *) * ss->count);
+
+  for (int i = 0; i < ss->count; i++){
+    const TSequence *seq = tsequenceset_seq_n(ss, i);
+    sequences[i] = tsequence_filter_kf(seq, process_noise_std, measurement_noise_std);
+  }
+  return tsequenceset_make_free(sequences, ss->count, NORMALIZE);
+}
+
 
  /**
- * @ingroup
+ * @ingroup filter outlier
  * @brief Detect outliers in a the temporal type using a heuritic
  * based algorithm.
- * @sqlfunc 
+ * @sqlfunc outlierh
  */
-Temporal * temporal_outlier(const Temporal *temp, double eps_dist, bool synchronized,int max_speed, int include_loops, int speed, int max_loop, float max_ratio){
+Temporal * temporal_outlierheuristic(const Temporal *temp, double eps_dist, bool synchronized,int max_speed){
   Temporal *result;
   
   ensure_valid_tempsubtype(temp->subtype);
@@ -1928,12 +2061,31 @@ Temporal * temporal_outlier(const Temporal *temp, double eps_dist, bool synchron
     result = temporal_copy(temp);
 
   else if (temp->subtype == TSEQUENCE)
-    result = (Temporal *) tsequence_filter_heuristic((TSequence *) temp, eps_dist,
-      synchronized, 2,max_speed,include_loops, speed, max_loop, max_ratio);
+    result = (Temporal *) tsequence_filter_heuristic((TSequence *) temp, eps_dist,synchronized, 2,max_speed);
 
   else /* temp->subtype == TSEQUENCESET */
-    result = (Temporal *) tsequenceset_filter_heuristic((TSequenceSet *) temp,
-      eps_dist, synchronized, 2,max_speed,include_loops, speed,max_loop, max_ratio);
+    result = (Temporal *) tsequenceset_filter_heuristic((TSequenceSet *) temp, eps_dist, synchronized, 2,max_speed);
+
+  return result;
+}
+
+ /**
+ * @ingroup
+ * @brief Detect outliers in a the temporal type using a kalman filter algorithm.
+ * @sqlfunc outlierkf
+ */
+Temporal * temporal_outlierkf(const Temporal *temp, float process_noise_std, int measurement_noise_std){
+  Temporal *result;
+  
+  ensure_valid_tempsubtype(temp->subtype);
+  if (temp->subtype == TINSTANT || ! MOBDB_FLAGS_GET_LINEAR(temp->flags))
+    result = temporal_copy(temp);
+
+  else if (temp->subtype == TSEQUENCE)
+    result = (Temporal *) tsequence_filter_kf((TSequence *) temp,process_noise_std,measurement_noise_std);
+
+  else /* temp->subtype == TSEQUENCESET */
+    result = (Temporal *) tsequenceset_filter_kf((TSequenceSet *) temp,process_noise_std,measurement_noise_std);
 
   return result;
 }
