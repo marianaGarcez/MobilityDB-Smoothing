@@ -55,9 +55,6 @@
 #include "point/tpoint_spatialrels.h"
 #include "point/tpoint_spatialfuncs.h"
 
-double frand() {
-    return 2*((rand()/(double)RAND_MAX) - 0.5);
-}
 
 Temporal* Kalman_filter_CV(const Temporal *t,float process_noise_std, int measurement_noise_std){
 

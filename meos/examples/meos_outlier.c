@@ -184,7 +184,6 @@ int main(void){
     * Outlier detection Methods Return
     *************************************************************************** */
 
-
   /* Free memory */
   for (i = 0; i < numships; i++)
     for (j = 0; j < numinstants[i]; j++)
