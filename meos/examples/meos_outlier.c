@@ -177,7 +177,7 @@ int main(void){
     int max_loop = 6;
     float max_ratio= 0.25;
     
-    tsequence_filter_heuristic(trips,3,1,8,max_speed,include_loops,speed,max_loop,max_ratio);
+    tsequence_filter_heuristic(trips,3,1,8,max_speed);
 
   
     /* ****************************************************************************

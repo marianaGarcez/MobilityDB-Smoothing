@@ -1885,7 +1885,7 @@ static void tpointseq_findOutlier(const TSequence *seq, int i1, int i2, bool syn
 
 
 
-static TSequence * tsequence_filter_heuristic(const TSequence *seq, double eps_dist, bool synchronized,uint32_t minpts,int max_speed){
+TSequence * tsequence_filter_heuristic(const TSequence *seq, double eps_dist, bool synchronized,uint32_t minpts,int max_speed){
   //TODO: add a filter based on the acceleration
   static size_t stack_size = 256;
   int *stack, *outlist; /* recursion stack */
