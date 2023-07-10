@@ -1578,4 +1578,9 @@ extern double getDistance(double, double);
 
 /*****************************************************************************/
 
+/* Heuristic filtering */
+
+extern TSequence * tsequence_filter_heuristic(const TSequence *, double, bool, uint32_t,int, int, int, int, float);
+extern TSequenceSet *tsequenceset_filter_heuristic(const TSequenceSet *ss, double eps_dist,bool synchronized, uint32_t minpts,int, int, int, int, float);
+
 #endif
