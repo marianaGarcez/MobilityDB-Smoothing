@@ -2069,18 +2069,18 @@ Temporal * temporal_outlierheuristic(const Temporal *temp, double eps_dist, bool
  * @brief Detect outliers in a the temporal type using a kalman filter algorithm.
  * @sqlfunc outlierkf
  */
-Temporal * temporal_outlierkf(const Temporal *temp, float process_noise_std, int measurement_noise_std){
-  Temporal *result;
+// Temporal * temporal_outlierkf(const Temporal *temp, float process_noise_std, int measurement_noise_std){
+//   Temporal *result;
   
-  ensure_valid_tempsubtype(temp->subtype);
-  if (temp->subtype == TINSTANT || ! MOBDB_FLAGS_GET_LINEAR(temp->flags))
-    result = temporal_copy(temp);
+//   ensure_valid_tempsubtype(temp->subtype);
+//   if (temp->subtype == TINSTANT || ! MOBDB_FLAGS_GET_LINEAR(temp->flags))
+//     result = temporal_copy(temp);
 
-  else if (temp->subtype == TSEQUENCE)
-    result = (Temporal *) tsequence_filter_kf((TSequence *) temp,process_noise_std,measurement_noise_std);
+//   else if (temp->subtype == TSEQUENCE)
+//     result = (Temporal *) tsequence_filter_kf((TSequence *) temp,process_noise_std,measurement_noise_std);
 
-  else /* temp->subtype == TSEQUENCESET */
-    result = (Temporal *) tsequenceset_filter_kf((TSequenceSet *) temp,process_noise_std,measurement_noise_std);
+//   else /* temp->subtype == TSEQUENCESET */
+//     result = (Temporal *) tsequenceset_filter_kf((TSequenceSet *) temp,process_noise_std,measurement_noise_std);
 
-  return result;
-}
+//   return result;
+// }
