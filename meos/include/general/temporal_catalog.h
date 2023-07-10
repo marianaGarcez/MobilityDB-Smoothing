@@ -45,7 +45,7 @@
  * @brief Enumeration that defines the built-in and temporal types used in
  * MobilityDB.
  */
-typedef mobdbType enum
+typedef enum mobdbType_T
 {
   // T_UNKNOWN = 0,
   T_BOOL,          /**< boolean type */
