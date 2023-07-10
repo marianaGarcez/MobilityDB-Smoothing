@@ -1574,7 +1574,7 @@ bool tpoint_to_geo_measure(const Temporal *tpoint, const Temporal *measure, bool
 Temporal * temporal_outlierheuristic(const Temporal *temp, double eps_dist, bool synchronized,int max_speed);
 Temporal * temporal_outlierkf(const Temporal *temp, float process_noise_std, int measurement_noise_std);
 /*****************************************************************************/
-extern TSequence * tsequence_filter_heuristicstatic TSequence * tsequence_filter_heuristic(const TSequence *seq, double eps_dist, bool synchronized,uint32_t minpts,int max_speed);
+extern TSequence * tsequence_filter_heuristic(const TSequence *seq, double eps_dist, bool synchronized,uint32_t minpts,int max_speed);
 //extern TSequenceSet *tsequenceset_filter_heuristic(const TSequenceSet *ss, double eps_dist,bool synchronized, uint32_t minpts,int, int, int, int, float);
 
 #endif
