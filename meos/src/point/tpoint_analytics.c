@@ -2031,15 +2031,15 @@ static TSequenceSet *tsequenceset_filter_heuristic(const TSequenceSet *ss, doubl
 
 
 
-static TSequenceSet *tsequenceset_filter_kf(const TSequenceSet *ss,float process_noise_std, int measurement_noise_std){
-  TSequence **sequences = palloc(sizeof(TSequence *) * ss->count);
+// static TSequenceSet *tsequenceset_filter_kf(const TSequenceSet *ss,float process_noise_std, int measurement_noise_std){
+//   TSequence **sequences = palloc(sizeof(TSequence *) * ss->count);
 
-  for (int i = 0; i < ss->count; i++){
-    const TSequence *seq = tsequenceset_seq_n(ss, i);
-    sequences[i] = tsequence_filter_kf(seq, process_noise_std, measurement_noise_std);
-  }
-  return tsequenceset_make_free(sequences, ss->count, NORMALIZE);
-}
+//   for (int i = 0; i < ss->count; i++){
+//     const TSequence *seq = tsequenceset_seq_n(ss, i);
+//     sequences[i] = tsequence_filter_kf(seq, process_noise_std, measurement_noise_std);
+//   }
+//   return tsequenceset_make_free(sequences, ss->count, NORMALIZE);
+// }
 
 
  /**
