@@ -1961,37 +1961,37 @@ static TSequence * tsequence_filter_heuristic(const TSequence *seq, double eps_d
   return result;
 }
 
-static TSequenceSet *tsequenceset_filter_heuristic(const TSequenceSet *ss, double eps_dist, bool synchronized, uint32_t minpts,int max_speed){
-  TSequence **sequences = palloc(sizeof(TSequence *) * ss->count);
+// static TSequenceSet *tsequenceset_filter_heuristic(const TSequenceSet *ss, double eps_dist, bool synchronized, uint32_t minpts,int max_speed){
+//   TSequence **sequences = palloc(sizeof(TSequence *) * ss->count);
 
-  for (int i = 0; i < ss->count; i++){
-    const TSequence *seq = tsequenceset_seq_n(ss, i);
-    sequences[i] = tsequence_filter_heuristic(seq, eps_dist, synchronized, minpts, max_speed);
-  }
-  return tsequenceset_make_free(sequences, ss->count, NORMALIZE);
-}
-
-
+//   for (int i = 0; i < ss->count; i++){
+//     const TSequence *seq = tsequenceset_seq_n(ss, i);
+//     sequences[i] = tsequence_filter_heuristic(seq, eps_dist, synchronized, minpts, max_speed);
+//   }
+//   return tsequenceset_make_free(sequences, ss->count, NORMALIZE);
+// }
 
 
- /**
- * @ingroup filter outlier
- * @brief Detect outliers in a the temporal type using a heuritic
- * based algorithm.
- * @sqlfunc outlierh
- */
-Temporal * temporal_outlierheuristic(const Temporal *temp, double eps_dist, bool synchronized,int max_speed){
-  Temporal *result;
+
+
+//  /**
+//  * @ingroup filter outlier
+//  * @brief Detect outliers in a the temporal type using a heuritic
+//  * based algorithm.
+//  * @sqlfunc outlierh
+//  */
+// Temporal * temporal_outlierheuristic(const Temporal *temp, double eps_dist, bool synchronized,int max_speed){
+//   Temporal *result;
   
-  ensure_valid_tempsubtype(temp->subtype);
-  if (temp->subtype == TINSTANT || ! MOBDB_FLAGS_GET_LINEAR(temp->flags))
-    result = temporal_copy(temp);
+//   ensure_valid_tempsubtype(temp->subtype);
+//   if (temp->subtype == TINSTANT || ! MOBDB_FLAGS_GET_LINEAR(temp->flags))
+//     result = temporal_copy(temp);
 
-  else if (temp->subtype == TSEQUENCE)
-    result = (Temporal *) tsequence_filter_heuristic((TSequence *) temp, eps_dist,synchronized, 2,max_speed);
+//   else if (temp->subtype == TSEQUENCE)
+//     result = (Temporal *) tsequence_filter_heuristic((TSequence *) temp, eps_dist,synchronized, 2,max_speed);
 
-  else /* temp->subtype == TSEQUENCESET */
-    result = (Temporal *) tsequenceset_filter_heuristic((TSequenceSet *) temp, eps_dist, synchronized, 2,max_speed);
+//   else /* temp->subtype == TSEQUENCESET */
+//     result = (Temporal *) tsequenceset_filter_heuristic((TSequenceSet *) temp, eps_dist, synchronized, 2,max_speed);
 
-  return result;
-}
+//   return result;
+// }
