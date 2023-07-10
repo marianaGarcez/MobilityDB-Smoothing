@@ -40,6 +40,7 @@
 
 /* Include the MEOS API header */
 #include "meos.h"
+#include <math.h>
 
 #define MAX_INSTANTS 50000
 #define MAX_TRIPS 5
