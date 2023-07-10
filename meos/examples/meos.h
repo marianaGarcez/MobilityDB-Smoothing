@@ -1574,7 +1574,7 @@ bool tpoint_AsMVTGeom(const Temporal *temp, const STBOX *bounds, int32_t extent,
 bool tpoint_to_geo_measure(const Temporal *tpoint, const Temporal *measure, bool segmentize, GSERIALIZED **result);
 Temporal * temporal_outlierheuristic(const Temporal *temp, double eps_dist, bool synchronized,int max_speed);
 Temporal * temporal_outlierkf(const Temporal *temp, float process_noise_std, int measurement_noise_std);
-
+extern double getDistance(double, double);
 
 /*****************************************************************************/
 
