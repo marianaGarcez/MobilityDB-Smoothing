@@ -1766,6 +1766,29 @@ tpoint_AsMVTGeom(const Temporal *temp, const STBOX *bounds, int32_t extent,
 * Outlier detection Methods 
 **************************************************************************** */
 
+double getDistance(double loc1, double loc2){
+    //"Haversine formula - give coordinates as (lat_decimal,lon_decimal) tuples"
+    double earthradius = 6371.0;
+    double lat1 = loc1, lon1 = loc1;
+    double lat2 = loc2, lon2 = loc2;
+    
+    //convert to radians
+    lon1 = lon1 * M_PI / 180.0;
+    lon2 = lon2 * M_PI / 180.0;
+    lat1 = lat1 * M_PI / 180.0;
+    lat2 = lat2 * M_PI / 180.0;
+
+    //haversine formula
+    double dlon = lon2 - lon1;
+    double dlat = lat2 - lat1;
+    double a,c,km;
+
+    a = pow((sin(dlat/2)),2) + cos(lat1) * cos(lat2) * pow((sin(dlon/2.0)),2);
+    c = 2.0 * atan2(sqrt(a), sqrt(1.0-a));
+    km = earthradius * c;
+    return km;
+}
+
 static void tfloatseq_findOutlier(const TSequence *seq, int i1, int i2, int *split,double *dist, int max_speed){
   *split = i1;
   *dist = -1;
@@ -1860,28 +1883,6 @@ static void tpointseq_findOutlier(const TSequence *seq, int i1, int i2, bool syn
 }
 
 
-double getDistance(double loc1, double loc2){
-    //"Haversine formula - give coordinates as (lat_decimal,lon_decimal) tuples"
-    double earthradius = 6371.0;
-    double lat1 = loc1, lon1 = loc1;
-    double lat2 = loc2, lon2 = loc2;
-    
-    //convert to radians
-    lon1 = lon1 * M_PI / 180.0;
-    lon2 = lon2 * M_PI / 180.0;
-    lat1 = lat1 * M_PI / 180.0;
-    lat2 = lat2 * M_PI / 180.0;
-
-    //haversine formula
-    double dlon = lon2 - lon1;
-    double dlat = lat2 - lat1;
-    double a,c,km;
-
-    a = pow((sin(dlat/2)),2) + cos(lat1) * cos(lat2) * pow((sin(dlon/2.0)),2);
-    c = 2.0 * atan2(sqrt(a), sqrt(1.0-a));
-    km = earthradius * c;
-    return km;
-}
 
 
 double frand() {
