@@ -1766,6 +1766,10 @@ tpoint_AsMVTGeom(const Temporal *temp, const STBOX *bounds, int32_t extent,
 * Outlier detection Methods 
 **************************************************************************** */
 
+double frand() {
+    return 2*((rand()/(double)RAND_MAX) - 0.5);
+}
+
 double getDistance(double loc1, double loc2){
     //"Haversine formula - give coordinates as (lat_decimal,lon_decimal) tuples"
     double earthradius = 6371.0;
@@ -1882,12 +1886,6 @@ static void tpointseq_findOutlier(const TSequence *seq, int i1, int i2, bool syn
   return;
 }
 
-
-
-
-double frand() {
-    return 2*((rand()/(double)RAND_MAX) - 0.5);
-}
 
 
 
