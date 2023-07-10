@@ -1540,7 +1540,7 @@ Temporal * temporal_outlierheuristic(const Temporal *temp, double eps_dist, bool
 Temporal * temporal_outlierkf(const Temporal *temp, float process_noise_std, int measurement_noise_std);
 
 /*****************************************************************************/
-extern TSequence * tsequence_filter_heuristic(const TSequence *, double, bool, uint32_t,int, int, int, int, float);
+uint32_t
 
 
 #endif

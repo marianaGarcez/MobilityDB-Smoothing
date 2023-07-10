@@ -171,13 +171,14 @@ int main(void){
     * Call Outlier detection Methods 
     **************************************************************************** */
     TSequence *ftrips[MAX_TRIPS];
-    int max_speed = 500;
+    uint32_t max_speed = 500;
     int include_loops = 0;
     int speed = 5;
     int max_loop = 6;
     float max_ratio= 0.25;
     
-    tsequence_filter_heuristic(trips,3,1,8,max_speed,include_loops,speed,max_loop,max_ratio);
+    tsequence_filter_heuristic(trips,3,1,8,max_speed);
+
 
   
     /* ****************************************************************************
