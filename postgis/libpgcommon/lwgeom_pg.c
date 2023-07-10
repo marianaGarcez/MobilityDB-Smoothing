@@ -118,7 +118,7 @@ postgis_get_full_version_schema()
 {
 	const char* proname = "postgis_full_version";
 	List* names = stringToQualifiedNameList(proname);
-	#if POSTGIS_PGSQL_VERSION < 140
+	#if POSTGIS_PGSQL_VERSION > 140
 	FuncCandidateList clist = FuncnameGetCandidates(names, -1, NIL, false, false, false);
 	#else
 	FuncCandidateList clist = FuncnameGetCandidates(names, -1, NIL, false, false, false, false);
