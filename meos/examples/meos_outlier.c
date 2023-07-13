@@ -177,8 +177,9 @@ int main(void){
     int max_loop = 6;
     float max_ratio= 0.25;
     
+    printf("call outlier detection\n");
     tsequence_filter_heuristic(trips,3,1,8,max_speed);
-
+    printf("return outlier detection\n");
   
     /* ****************************************************************************
     * Outlier detection Methods Return
