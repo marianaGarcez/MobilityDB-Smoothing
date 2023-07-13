@@ -1928,7 +1928,7 @@ TSequence * tsequence_filter_heuristic(const TSequence *seq, double eps_dist, bo
       printf("tsequence_filter_heuristic4 IF\n");
       /* There is no synchronized distance for temporal floats */
       tfloatseq_findOutlier(seq, i1, stack[sp], &split, &dist,max_speed);
-      printf("tsequence_filter_heuristic5\n")
+      printf("tsequence_filter_heuristic5\n");
     }
 
     else {
