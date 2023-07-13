@@ -1924,13 +1924,17 @@ TSequence * tsequence_filter_heuristic(const TSequence *seq, double eps_dist, bo
   outlist[outn++] = 0;
   do {
     printf("tsequence_filter_heuristic3\n");
-    if (seq->temptype == T_TFLOAT)
+    if (seq->temptype == T_TFLOAT){
       /* There is no synchronized distance for temporal floats */
       tfloatseq_findOutlier(seq, i1, stack[sp], &split, &dist,max_speed);
+      printf("tsequence_filter_heuristic4\n");
+    }
 
-    else /* tgeo_type(seq->temptype) */
+    else {
+      /* tgeo_type(seq->temptype) */
       tpointseq_findOutlier(seq, i1, stack[sp], synchronized, &split, &dist, max_speed);
-    printf("tsequence_filter_heuristic4\n");
+      printf("tsequence_filter_heuristic4\n");
+    }
     //change to outlier detection  
     bool dosplit = (dist >= 0 && (dist > eps_dist || outn + sp + 1 < minpts));
     
