@@ -1897,15 +1897,15 @@ TSequence * tsequence_filter_heuristic(const TSequence *seq, double eps_dist, bo
   uint32_t i;
   double dist;
 
-  //assert(MOBDB_FLAGS_GET_LINEAR(seq->flags));
-  //assert(seq->temptype == T_TFLOAT || tgeo_type(seq->temptype));
+  assert(MOBDB_FLAGS_GET_LINEAR(seq->flags));
+  assert(seq->temptype == T_TFLOAT || tgeo_type(seq->temptype));
 
   /* Do not try to detect outlier really short things */
   if (seq->count < 3){
     printf("sequence too small\n");
     return tsequence_copy(seq);
   }
-  printf("tsequence_filter_heuristic %s \n",seq->temptype);
+  printf("tsequence_filter_heuristic\n");
 
 
   /* Only heap allocate book-keeping arrays if necessary */
