@@ -1901,10 +1901,11 @@ TSequence * tsequence_filter_heuristic(const TSequence *seq, double eps_dist, bo
   //assert(seq->temptype == T_TFLOAT || tgeo_type(seq->temptype));
 
   /* Do not try to detect outlier really short things */
-  if (seq->count < 3)
+  if (seq->count < 3){
+    printf("sequence too small\n");
     return tsequence_copy(seq);
-
-    printf("tsequence_filter_heuristic\n");
+  }
+  printf("tsequence_filter_heuristic\n");
 
 
   /* Only heap allocate book-keeping arrays if necessary */
