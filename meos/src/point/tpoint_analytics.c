@@ -1925,15 +1925,17 @@ TSequence * tsequence_filter_heuristic(const TSequence *seq, double eps_dist, bo
   do {
     printf("tsequence_filter_heuristic3\n");
     if (seq->temptype == T_TFLOAT){
+      printf("tsequence_filter_heuristic4 IF\n");
       /* There is no synchronized distance for temporal floats */
       tfloatseq_findOutlier(seq, i1, stack[sp], &split, &dist,max_speed);
-      printf("tsequence_filter_heuristic4\n");
+      printf("tsequence_filter_heuristic5\n")
     }
 
     else {
       /* tgeo_type(seq->temptype) */
+      printf("tsequence_filter_heuristic4 ELSE\n");
       tpointseq_findOutlier(seq, i1, stack[sp], synchronized, &split, &dist, max_speed);
-      printf("tsequence_filter_heuristic4\n");
+      printf("tsequence_filter_heuristic5\n");
     }
     //change to outlier detection  
     bool dosplit = (dist >= 0 && (dist > eps_dist || outn + sp + 1 < minpts));
@@ -1946,7 +1948,7 @@ TSequence * tsequence_filter_heuristic(const TSequence *seq, double eps_dist, bo
     }
   }
   while (sp >= 0);
-  printf("tsequence_filter_heuristic5\n");
+  printf("tsequence_filter_heuristic6\n");
 
   /* Put list of retained points into order */
   qsort(outlist, outn, sizeof(int), int_cmp);
