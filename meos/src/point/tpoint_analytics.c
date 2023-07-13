@@ -1897,15 +1897,15 @@ TSequence * tsequence_filter_heuristic(const TSequence *seq, double eps_dist, bo
   uint32_t i;
   double dist;
 
-  printf("tsequence_filter_heuristic\n");
   //assert(MOBDB_FLAGS_GET_LINEAR(seq->flags));
-  //printf("tsequence_filter_heuristic2\n");
   //assert(seq->temptype == T_TFLOAT || tgeo_type(seq->temptype));
-  //printf("tsequence_filter_heuristic3\n");
 
   /* Do not try to detect outlier really short things */
   if (seq->count < 3)
     return tsequence_copy(seq);
+
+    printf("tsequence_filter_heuristic\n");
+
 
   /* Only heap allocate book-keeping arrays if necessary */
   if ((unsigned int) seq->count > stack_size){
@@ -1916,14 +1916,14 @@ TSequence * tsequence_filter_heuristic(const TSequence *seq, double eps_dist, bo
     stack = stack_static;
     outlist = outlist_static;
   }
-
+  printf("tsequence_filter_heuristic2\n");
   i1 = 0;
   stack[++sp] = seq->count - 1;
 
   /* Add first point to output list */
   outlist[outn++] = 0;
   do {
-
+    printf("tsequence_filter_heuristic3\n");
     if (seq->temptype == T_TFLOAT)
       /* There is no synchronized distance for temporal floats */
       tfloatseq_findOutlier(seq, i1, stack[sp], &split, &dist,max_speed);
@@ -1942,6 +1942,7 @@ TSequence * tsequence_filter_heuristic(const TSequence *seq, double eps_dist, bo
     }
   }
   while (sp >= 0);
+  printf("tsequence_filter_heuristic4\n");
 
   /* Put list of retained points into order */
   qsort(outlist, outn, sizeof(int), int_cmp);
