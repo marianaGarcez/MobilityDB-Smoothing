@@ -1897,8 +1897,6 @@ TSequence * tsequence_filter_heuristic(const TSequence *seq, double eps_dist, bo
   uint32_t i;
   double dist;
 
-  assert(seq->temptype == T_TFLOAT || tgeo_type(seq->temptype));
-
   /* Do not try to detect outlier really short things */
   if (seq->count < 3){
     printf("sequence too small\n");

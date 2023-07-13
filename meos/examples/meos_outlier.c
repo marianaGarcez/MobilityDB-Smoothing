@@ -178,7 +178,7 @@ int main(void){
     float max_ratio= 0.25;
     
     printf("call outlier detection\n");
-    tsequence_filter_heuristic(trips,3,1,8,max_speed);
+    //tsequence_filter_heuristic(trips,3,1,8,max_speed);
     printf("return outlier detection\n");
   
     /* ****************************************************************************
