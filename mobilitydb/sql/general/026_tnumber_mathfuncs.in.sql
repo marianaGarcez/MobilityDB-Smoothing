@@ -1,12 +1,12 @@
 /*****************************************************************************
  *
  * This MobilityDB code is provided under The PostgreSQL License.
- * Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+ * Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
  * contributors
  *
  * MobilityDB includes portions of PostGIS version 3 source code released
  * under the GNU General Public License (GPLv2 or later).
- * Copyright (c) 2001-2022, PostGIS contributors
+ * Copyright (c) 2001-2023, PostGIS contributors
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written
@@ -23,7 +23,7 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
  * AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
- * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  *****************************************************************************/
 
@@ -471,19 +471,47 @@ CREATE OPERATOR / (
 
 /******************************************************************************/
 
-CREATE FUNCTION round(tfloat, integer DEFAULT 0)
+CREATE FUNCTION abs(tint)
+  RETURNS tint
+  AS 'MODULE_PATHNAME', 'Tnumber_abs'
+  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+CREATE FUNCTION abs(tfloat)
   RETURNS tfloat
-  AS 'MODULE_PATHNAME', 'Tnumber_round'
+  AS 'MODULE_PATHNAME', 'Tnumber_abs'
   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
 
-CREATE FUNCTION degrees(tfloat)
+CREATE FUNCTION deltaValue(tint)
+  RETURNS tint
+  AS 'MODULE_PATHNAME', 'Tnumber_delta_value'
+  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+CREATE FUNCTION deltaValue(tfloat)
   RETURNS tfloat
-  AS 'MODULE_PATHNAME', 'Tnumber_degrees'
+  AS 'MODULE_PATHNAME', 'Tnumber_delta_value'
+  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+
+CREATE FUNCTION round(tfloat, integer DEFAULT 0)
+  RETURNS tfloat
+  AS 'MODULE_PATHNAME', 'Tfloat_round'
+  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+
+CREATE FUNCTION degrees(float, bool DEFAULT FALSE)
+  RETURNS float
+  AS 'MODULE_PATHNAME', 'Float_degrees'
+  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+
+CREATE FUNCTION degrees(tfloat, bool DEFAULT FALSE)
+  RETURNS tfloat
+  AS 'MODULE_PATHNAME', 'Tfloat_degrees'
+  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+
+CREATE FUNCTION radians(tfloat)
+  RETURNS tfloat
+  AS 'MODULE_PATHNAME', 'Tfloat_radians'
   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
 
 CREATE FUNCTION derivative(tfloat)
   RETURNS tfloat
-  AS 'MODULE_PATHNAME', 'Tnumber_derivative'
+  AS 'MODULE_PATHNAME', 'Tfloat_derivative'
   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
 
 /******************************************************************************/

@@ -1,12 +1,12 @@
 -------------------------------------------------------------------------------
 --
 -- This MobilityDB code is provided under The PostgreSQL License.
--- Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+-- Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
 -- contributors
 --
 -- MobilityDB includes portions of PostGIS version 3 source code released
 -- under the GNU General Public License (GPLv2 or later).
--- Copyright (c) 2001-2022, PostGIS contributors
+-- Copyright (c) 2001-2023, PostGIS contributors
 --
 -- Permission to use, copy, modify, and distribute this software and its
 -- documentation for any purpose, without fee, and without a written
@@ -23,13 +23,17 @@
 -- INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
 -- AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
 -- AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
--- PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+-- PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
 --
 -------------------------------------------------------------------------------
 
 -------------------------------------------------------------------------------
 -- Temporal eq
 -------------------------------------------------------------------------------
+
+-- Test for NULL inputs since the function is not STRICT
+SELECT NULL #= tbool 't@2000-01-01';
+SELECT TRUE #= NULL::tbool;
 
 SELECT TRUE #= tbool 't@2000-01-01';
 SELECT TRUE #= tbool '{t@2000-01-01, f@2000-01-02, t@2000-01-03}';
@@ -41,10 +45,18 @@ SELECT FALSE #= tbool '{t@2000-01-01, f@2000-01-02, t@2000-01-03}';
 SELECT FALSE #= tbool '[t@2000-01-01, f@2000-01-02, t@2000-01-03]';
 SELECT FALSE #= tbool '{[t@2000-01-01, f@2000-01-02, t@2000-01-03],[t@2000-01-04, t@2000-01-05]}';
 
+-- Test for NULL inputs since the function is not STRICT
+SELECT NULL::tbool #= TRUE;
+SELECT tbool 't@2000-01-01' #= NULL;
+
 SELECT tbool 't@2000-01-01' #= TRUE;
 SELECT tbool '{t@2000-01-01, f@2000-01-02, t@2000-01-03}' #= TRUE;
 SELECT tbool '[t@2000-01-01, f@2000-01-02, t@2000-01-03]' #= TRUE;
 SELECT tbool '{[t@2000-01-01, f@2000-01-02, t@2000-01-03],[t@2000-01-04, t@2000-01-05]}' #= TRUE;
+
+-- Test for NULL inputs since the function is not STRICT
+SELECT NULL::tbool #= tbool 't@2000-01-01';
+SELECT tbool 't@2000-01-01' #= NULL::tbool;
 
 SELECT tbool 't@2000-01-01' #= tbool 't@2000-01-01';
 SELECT tbool 't@2000-01-01' #= tbool '{t@2000-01-01, f@2000-01-02, t@2000-01-03}';
@@ -142,9 +154,9 @@ SELECT tfloat '{1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03}' #= 1.5;
 SELECT tfloat '[1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03]' #= 1.5;
 SELECT tfloat '{[1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03],[3.5@2000-01-04, 3.5@2000-01-05]}' #= 1.5;
 SELECT tfloat '[1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03]' #= 2;
-SELECT tfloat 'Interp=Stepwise;[1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03]' #= 2;
+SELECT tfloat 'Interp=Step;[1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03]' #= 2;
 SELECT tfloat '{[1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03],[3.5@2000-01-04, 3.5@2000-01-05]}' #= 2;
-SELECT tfloat 'Interp=Stepwise;{[1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03],[3.5@2000-01-04, 3.5@2000-01-05]}' #= 2;
+SELECT tfloat 'Interp=Step;{[1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03],[3.5@2000-01-04, 3.5@2000-01-05]}' #= 2;
 
 SELECT tint '1@2000-01-01' #= tfloat '1.5@2000-01-01';
 SELECT tint '{1@2000-01-01, 2@2000-01-02, 1@2000-01-03}' #= tfloat '1.5@2000-01-01';
@@ -198,14 +210,14 @@ SELECT tfloat '[1@2000-01-01, 3@2000-01-03]' #= 2 + 1e-16;
 SELECT tfloat '[1@2000-01-01, 3@2000-01-03]' #= 3 - 1e-16;
 SELECT tfloat '[1@2000-01-01, 3@2000-01-03]' #= 3 + 1e-16;
 
-SELECT tfloat '1.5@2000-01-01' #= tfloat 'Interp=Stepwise;[1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03]';
-SELECT tfloat '{1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03}' #= tfloat 'Interp=Stepwise;[1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03]';
-SELECT tfloat '[1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03]' #= tfloat 'Interp=Stepwise;[1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03]';
-SELECT tfloat '{[1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03],[3.5@2000-01-04, 3.5@2000-01-05]}' #= tfloat 'Interp=Stepwise;[1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03]';
-SELECT tfloat '1.5@2000-01-01' #= tfloat 'Interp=Stepwise;{[1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03],[3.5@2000-01-04, 3.5@2000-01-05]}';
-SELECT tfloat '{1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03}' #= tfloat 'Interp=Stepwise;{[1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03],[3.5@2000-01-04, 3.5@2000-01-05]}';
-SELECT tfloat '[1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03]' #= tfloat 'Interp=Stepwise;{[1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03],[3.5@2000-01-04, 3.5@2000-01-05]}';
-SELECT tfloat '{[1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03],[3.5@2000-01-04, 3.5@2000-01-05]}' #= tfloat 'Interp=Stepwise;{[1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03],[3.5@2000-01-04, 3.5@2000-01-05]}';
+SELECT tfloat '1.5@2000-01-01' #= tfloat 'Interp=Step;[1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03]';
+SELECT tfloat '{1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03}' #= tfloat 'Interp=Step;[1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03]';
+SELECT tfloat '[1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03]' #= tfloat 'Interp=Step;[1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03]';
+SELECT tfloat '{[1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03],[3.5@2000-01-04, 3.5@2000-01-05]}' #= tfloat 'Interp=Step;[1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03]';
+SELECT tfloat '1.5@2000-01-01' #= tfloat 'Interp=Step;{[1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03],[3.5@2000-01-04, 3.5@2000-01-05]}';
+SELECT tfloat '{1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03}' #= tfloat 'Interp=Step;{[1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03],[3.5@2000-01-04, 3.5@2000-01-05]}';
+SELECT tfloat '[1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03]' #= tfloat 'Interp=Step;{[1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03],[3.5@2000-01-04, 3.5@2000-01-05]}';
+SELECT tfloat '{[1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03],[3.5@2000-01-04, 3.5@2000-01-05]}' #= tfloat 'Interp=Step;{[1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03],[3.5@2000-01-04, 3.5@2000-01-05]}';
 
 SELECT tfloat '[1@2000-01-01, 1@2000-01-03]' #= tfloat '[1@2000-01-01, 2@2000-01-02, 1@2000-01-03]';
 SELECT tfloat '[1.5@2000-01-01, 1.5@2000-01-03]' #= tfloat '[1@2000-01-01, 2@2000-01-02, 1@2000-01-03]';

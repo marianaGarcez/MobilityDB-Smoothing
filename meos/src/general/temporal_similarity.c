@@ -1,12 +1,12 @@
 /***********************************************************************
  *
  * This MobilityDB code is provided under The PostgreSQL License.
- * Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+ * Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
  * contributors
  *
  * MobilityDB includes portions of PostGIS version 3 source code released
  * under the GNU General Public License (GPLv2 or later).
- * Copyright (c) 2001-2022, PostGIS contributors
+ * Copyright (c) 2001-2023, PostGIS contributors
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written
@@ -23,11 +23,12 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
  * AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
- * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  *****************************************************************************/
 
 /**
+ * @file
  * @brief Similarity distance for temporal values. Currently, discrete Frechet
  * distance and Dynamic Time Warping (DTW) distance are implemented.
  */
@@ -37,67 +38,23 @@
 /* C */
 #include <assert.h>
 #include <math.h>
+#include <float.h>
 /* PostgreSQL */
-/* MobilityDB */
+/* MEOS */
 #include <meos.h>
 #include <meos_internal.h>
 #include "general/temporaltypes.h"
+#include "point/tpoint_distance.h"
 #include "point/tpoint_spatialfuncs.h"
-
-/*****************************************************************************
- * Compute the distance between two instants depending on their type
- *****************************************************************************/
-
-/**
- * Compute the distance between two temporal instants.
- *
- * @param[in] inst1,inst2 Temporal instants
- */
-static double
-tnumberinst_distance(const TInstant *inst1, const TInstant *inst2)
-{
-  double result = fabs(tnumberinst_double(inst1) - tnumberinst_double(inst2));
-  return result;
-}
-
-/**
- * Compute the distance between two temporal instants.
- *
- * @param[in] inst1,inst2 Temporal instants
- */
-static double
-tpointinst_distance(const TInstant *inst1, const TInstant *inst2)
-{
-  datum_func2 func = pt_distance_fn(inst1->flags);
-  Datum value1 = tinstant_value(inst1);
-  Datum value2 = tinstant_value(inst2);
-  double result = DatumGetFloat8(func(value1, value2));
-  return result;
-}
-
-/**
- * Compute the distance between two temporal instants.
- *
- * @param[in] inst1,inst2 Temporal instants
- */
-static double
-tinstant_distance(const TInstant *inst1, const TInstant *inst2)
-{
-  if (tnumber_type(inst1->temptype))
-    return tnumberinst_distance(inst1, inst2);
-  if (tgeo_type(inst1->temptype))
-    return tpointinst_distance(inst1, inst2);
-  elog(ERROR, "Unexpected temporal type: inst1->temptype");
-}
+#include "npoint/tnpoint_spatialfuncs.h"
 
 /*****************************************************************************
  * Linear space computation of the similarity distance
  *****************************************************************************/
 
 /**
- * Linear space computation of the similarity distance between two temporal
- * values. Only two rows of the full matrix are used.
- *
+ * @brief Linear space computation of the similarity distance between two
+ * temporal values. Only two rows of the full matrix are used.
  * @param[in] instants1,instants2 Arrays of temporal instants
  * @param[in] count1,count2 Number of instants in the arrays
  * @param[in] simfunc Similarity function, i.e., Frechet or DTW
@@ -107,13 +64,14 @@ static double
 tinstarr_similarity1(double *dist, const TInstant **instants1, int count1,
   const TInstant **instants2, int count2, SimFunc simfunc)
 {
+  datum_func2 func = pt_distance_fn(instants1[0]->flags);
   for (int i = 0; i < count1; i++)
   {
     for (int j = 0; j < count2; j++)
     {
       const TInstant *inst1 = instants1[i];
       const TInstant *inst2 = instants2[j];
-      double d = tinstant_distance(inst1, inst2);
+      double d = tinstant_distance(inst1, inst2, func);
       if (i > 0 && j > 0)
       {
         if (simfunc == FRECHET)
@@ -161,9 +119,8 @@ tinstarr_similarity1(double *dist, const TInstant **instants1, int count1,
 }
 
 /**
- * Linear space computation of the similarity distance between two temporal
+ * @brief Linear space computation of the similarity distance between two temporal
  * values. Only two rows of the full matrix are used.
- *
  * @param[in] instants1,instants2 Arrays of temporal instants
  * @param[in] count1,count2 Number of instants in the arrays
  * @param[in] simfunc Similarity function, i.e., Frechet or DTW
@@ -187,7 +144,6 @@ tinstarr_similarity(const TInstant **instants1, int count1,
 
 /**
  * @brief Compute the similarity distance between two temporal values.
- *
  * @param[in] temp1,temp2 Temporal values
  * @param[in] simfunc Similarity function, i.e., Frechet or DTW
  */
@@ -211,7 +167,6 @@ temporal_similarity(const Temporal *temp1, const Temporal *temp2,
 /**
  * @ingroup libmeos_temporal_similarity
  * @brief Compute the Frechet distance between two temporal values.
- *
  * @param[in] temp1,temp2 Temporal values
  * @sqlfunc frechetDistance()
  */
@@ -224,7 +179,6 @@ temporal_frechet_distance(const Temporal *temp1, const Temporal *temp2)
 /**
  * @ingroup libmeos_temporal_similarity
  * @brief Compute the Dynamic Time Warp distance between two temporal values.
- *
  * @param[in] temp1,temp2 Temporal values
  * @sqlfunc dynamicTimeWarp()
  */
@@ -235,14 +189,13 @@ temporal_dyntimewarp_distance(const Temporal *temp1, const Temporal *temp2)
 }
 #endif
 
-
 /*****************************************************************************
  * Iterative implementation of the similarity distance with a full matrix
  *****************************************************************************/
 
 #ifdef DEBUG_BUILD
 /**
- * Print a distance matrix in tabular form
+ * @brief Print a distance matrix in tabular form
  */
 void
 matrix_print(double *dist, int count1, int count2)
@@ -275,7 +228,7 @@ matrix_print(double *dist, int count1, int count2)
 }
 
 /**
- * Print a distant path found from the distance matrix
+ * @brief Print a distant path found from the distance matrix
  */
 void
 path_print(Match *path, int count)
@@ -291,9 +244,8 @@ path_print(Match *path, int count)
 #endif
 
 /**
- * Compute the similarity path between two temporal values based on the
+ * @brief Compute the similarity path between two temporal values based on the
  * distance matrix.
- *
  * @param[in] dist Matrix keeping the distances
  * @param[in] count1,count2 Number of rows and columns of the matrix
  * @param[out] count Number of elements of the similarity path
@@ -336,9 +288,8 @@ tinstarr_similarity_path(double *dist, int count1, int count2, int *count)
 }
 
 /**
- * Computing the similarity distance between two temporal values using a
+ * @brief Compute the similarity distance between two temporal values using a
  * full matrix.
- *
  * @param[in] instants1,instants2 Instants of the temporal values
  * @param[in] count1,count2 Number of instants of the temporal values
  * @param[in] simfunc Similarity function, i.e., Frechet or DTW
@@ -348,13 +299,14 @@ static void
 tinstarr_similarity_matrix1(const TInstant **instants1, int count1,
   const TInstant **instants2, int count2, SimFunc simfunc, double *dist)
 {
+  datum_func2 func = pt_distance_fn(instants1[0]->flags);
   for (int i = 0; i < count1; i++)
   {
     for (int j = 0; j < count2; j++)
     {
       const TInstant *inst1 = instants1[i];
       const TInstant *inst2 = instants2[j];
-      double d = tinstant_distance(inst1, inst2);
+      double d = tinstant_distance(inst1, inst2, func);
       if (i > 0 && j > 0)
       {
         if (simfunc == FRECHET)
@@ -402,8 +354,7 @@ tinstarr_similarity_matrix1(const TInstant **instants1, int count1,
 }
 
 /**
- * Computes the similarity distance between two temporal values.
- *
+ * @brief Compute the similarity distance between two temporal values.
  * @param[in] instants1,instants2 Arrays of temporal instants
  * @param[in] count1,count2 Number of instants in the arrays
  * @param[in] simfunc Similarity function, i.e., Frechet or DTW
@@ -456,7 +407,6 @@ temporal_similarity_path(const Temporal *temp1, const Temporal *temp2,
 /**
  * @ingroup libmeos_temporal_similarity
  * @brief Compute the Frechet distance between two temporal values.
- *
  * @param[in] temp1,temp2 Temporal values
  * @param[out] count Number of elements of the output array
  * @sqlfunc frechetDistancePath()
@@ -470,7 +420,6 @@ temporal_frechet_path(const Temporal *temp1, const Temporal *temp2, int *count)
 /**
  * @ingroup libmeos_temporal_similarity
  * @brief Compute the Dynamic Time Warp distance between two temporal values.
- *
  * @param[in] temp1,temp2 Temporal values
  * @param[out] count Number of elements of the output array
  * @sqlfunc dynamicTimeWarpPath()
@@ -481,5 +430,76 @@ temporal_dyntimewarp_path(const Temporal *temp1, const Temporal *temp2, int *cou
   return temporal_similarity_path(temp1, temp2, count, DYNTIMEWARP);
 }
 #endif
+
+/*****************************************************************************
+ * Hausdorff distance
+ *****************************************************************************/
+
+/**
+ * @brief Compute the discrete Hausdorff distance between two temporal values.
+ * @param[in] instants1,instants2 Arrays of temporal instants
+ * @param[in] count1,count2 Number of instants in the arrays
+ */
+static double
+tinstarr_hausdorff_distance(const TInstant **instants1, int count1,
+  const TInstant **instants2, int count2)
+{
+  datum_func2 func = pt_distance_fn(instants1[0]->flags);
+  const TInstant *inst1, *inst2;
+  double cmax = 0.0, cmin;
+  double d;
+  int i, j;
+  for (i = 0; i < count1; i++)
+  {
+    inst1 = instants1[i];
+    cmin = DBL_MAX;
+    for (j = 0; j < count2; j++)
+    {
+      inst2 = instants2[j];
+      d = tinstant_distance(inst1, inst2, func);
+      if (d < cmin)
+        cmin = d;
+      if (cmin < cmax)
+        break;
+    }
+    if (cmax < cmin && cmin < DBL_MAX)
+      cmax = cmin;
+  }
+  for (j = 0; j < count2; j++)
+  {
+    cmin = DBL_MAX;
+    inst2 = instants2[j];
+    for (i = 0; i < count1; i++)
+    {
+      inst1 = instants1[i];
+      d = tinstant_distance(inst1, inst2, func);
+      if (d < cmin)
+        cmin = d;
+      if (cmin < cmax)
+        break;
+    }
+    if (cmax < cmin && cmin < DBL_MAX)
+      cmax = cmin;
+  }
+  return cmax;
+}
+
+/**
+ * @ingroup libmeos_temporal_similarity
+ * @brief Compute the Hausdorf distance between two temporal values.
+ * @param[in] temp1,temp2 Temporal values
+ */
+double
+temporal_hausdorff_distance(const Temporal *temp1, const Temporal *temp2)
+{
+  double result;
+  int count1, count2;
+  const TInstant **instants1 = temporal_instants(temp1, &count1);
+  const TInstant **instants2 = temporal_instants(temp2, &count2);
+  result = tinstarr_hausdorff_distance(instants1, count1, instants2, count2);
+  /* Free memory */
+  pfree(instants1); pfree(instants2);
+  return result;
+}
 
 /*****************************************************************************/

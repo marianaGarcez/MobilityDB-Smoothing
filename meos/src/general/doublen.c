@@ -1,12 +1,12 @@
 /*****************************************************************************
  *
  * This MobilityDB code is provided under The PostgreSQL License.
- * Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+ * Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
  * contributors
  *
  * MobilityDB includes portions of PostGIS version 3 source code released
  * under the GNU General Public License (GPLv2 or later).
- * Copyright (c) 2001-2022, PostGIS contributors
+ * Copyright (c) 2001-2023, PostGIS contributors
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written
@@ -23,11 +23,12 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
  * AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
- * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  *****************************************************************************/
 
 /**
+ * @file
  * @brief Internal types used in particular for computing the average and
  * centroid temporal aggregates.
  *
@@ -46,17 +47,17 @@
 #include <float.h>
 /* PostgreSQL */
 #include <utils/float.h>
-/* MobilityDB */
-#include "general/pg_call.h"
-#include "general/temporal_util.h"
+/* MEOS */
+#include "general/pg_types.h"
+#include "general/type_util.h"
 
 /*****************************************************************************
- * Functions
+ * Double2
  *****************************************************************************/
 
-#if MEOS
+#if MEOS || DEBUG_BUILD
 /**
- * Create a double2 value from the double values
+ * @brief Create a double2 value from the double values
  */
 double2 *
 double2_make(double a, double b)
@@ -71,7 +72,7 @@ double2_make(double a, double b)
  * @brief Output function for double2 values
  */
 char *
-double2_out(double2 *d, int maxdd)
+double2_out(const double2 *d, int maxdd)
 {
   char *astr = float8_out(d->a, maxdd);
   char *bstr = float8_out(d->b, maxdd);
@@ -84,7 +85,7 @@ double2_out(double2 *d, int maxdd)
 #endif /* MEOS */
 
 /**
- * Set a double2 value from the double values
+ * @brief Set a double2 value from the double values
  */
 void
 double2_set(double a, double b, double2 *result)
@@ -96,7 +97,7 @@ double2_set(double a, double b, double2 *result)
 }
 
 /**
- * Return the addition of the double2 values
+ * @brief Return the addition of the double2 values
  */
 double2 *
 double2_add(const double2 *d1, const double2 *d2)
@@ -108,7 +109,7 @@ double2_add(const double2 *d1, const double2 *d2)
 }
 
 /**
- * Return true if the double2 values are equal
+ * @brief Return true if the double2 values are equal
  */
 bool
 double2_eq(const double2 *d1, const double2 *d2)
@@ -116,28 +117,28 @@ double2_eq(const double2 *d1, const double2 *d2)
   return (d1->a == d2->a && d1->b == d2->b);
 }
 
-#if MEOS
+#if 0 /* not used */
 /**
- * Return -1, 0, or 1 depending on whether the first double2
+ * @brief Return -1, 0, or 1 depending on whether the first double2
  * is less than, equal, or greater than the second one
  */
 int
-double2_cmp(double2 *d1, double2 *d2)
+double2_cmp(const double2 *d1, const double2 *d2)
 {
   int cmp = float8_cmp_internal(d1->a, d2->a);
   if (cmp == 0)
     cmp = float8_cmp_internal(d1->b, d2->b);
   return cmp;
 }
-#endif
+#endif /* not used */
 
 /*****************************************************************************
- * Functions
+ * Double3
  *****************************************************************************/
 
-#if MEOS
+#if MEOS || DEBUG_BUILD
 /**
- * Create a double2 value from the double values
+ * @brief Create a double3 value from the double values
  */
 double3 *
 double3_make(double a, double b, double c)
@@ -152,7 +153,7 @@ double3_make(double a, double b, double c)
  * @brief Output function for double3 values
  */
 char *
-double3_out(double3 *d, int maxdd)
+double3_out(const double3 *d, int maxdd)
 {
   char *astr = float8_out(d->a, maxdd);
   char *bstr = float8_out(d->b, maxdd);
@@ -167,7 +168,7 @@ double3_out(double3 *d, int maxdd)
 #endif /* MEOS */
 
 /**
- * Set a double3 value from the double values
+ * @brief Set a double3 value from the double values
  */
 void
 double3_set(double a, double b, double c, double3 *result)
@@ -180,7 +181,7 @@ double3_set(double a, double b, double c, double3 *result)
 }
 
 /**
- * Return the addition of the double3 values
+ * @brief Return the addition of the double3 values
  */
 double3 *
 double3_add(const double3 *d1, const double3 *d2)
@@ -193,7 +194,7 @@ double3_add(const double3 *d1, const double3 *d2)
 }
 
 /**
- * Return true if the double3 values are equal
+ * @brief Return true if the double3 values are equal
  */
 bool
 double3_eq(const double3 *d1, const double3 *d2)
@@ -201,13 +202,13 @@ double3_eq(const double3 *d1, const double3 *d2)
   return (d1->a == d2->a && d1->b == d2->b && d1->c == d2->c);
 }
 
-#if MEOS
+#if 0 /* not used */
 /**
- * Return -1, 0, or 1 depending on whether the first double2
+ * @brief Return -1, 0, or 1 depending on whether the first double3
  * is less than, equal, or greater than the second one
  */
 int
-double3_cmp(double3 *d1, double3 *d2)
+double3_cmp(const double3 *d1, const double3 *d2)
 {
   int cmp = float8_cmp_internal(d1->a, d2->a);
   if (cmp == 0)
@@ -218,13 +219,13 @@ double3_cmp(double3 *d1, double3 *d2)
   }
   return cmp;
 }
-#endif
+#endif /* not used */
 
 /*****************************************************************************
- * Functions
+ * Double4
  *****************************************************************************/
 
-#if MEOS
+#if MEOS || DEBUG_BUILD
 /**
  * @brief Create a double2 value from the double values
  */
@@ -241,7 +242,7 @@ double4_make(double a, double b, double c, double d)
  * @brief Output function for double4 values
  */
 char *
-double4_out(double4 *d, int maxdd)
+double4_out(const double4 *d, int maxdd)
 {
   char *astr = float8_out(d->a, maxdd);
   char *bstr = float8_out(d->b, maxdd);
@@ -259,7 +260,7 @@ double4_out(double4 *d, int maxdd)
 #endif /* MEOS */
 
 /**
- * Set a double4 value from the double values
+ * @brief Set a double4 value from the double values
  */
 void
 double4_set(double a, double b, double c, double d, double4 *result)
@@ -273,7 +274,7 @@ double4_set(double a, double b, double c, double d, double4 *result)
 }
 
 /**
- * Return the addition of the double4 values
+ * @brief Return the addition of the double4 values
  */
 double4 *
 double4_add(const double4 *d1, const double4 *d2)
@@ -287,7 +288,7 @@ double4_add(const double4 *d1, const double4 *d2)
 }
 
 /**
- * Return true if the double4 values are equal
+ * @brief Return true if the double4 values are equal
  */
 bool
 double4_eq(const double4 *d1, const double4 *d2)
@@ -295,6 +296,29 @@ double4_eq(const double4 *d1, const double4 *d2)
   return (d1->a == d2->a && d1->b == d2->b && d1->c == d2->c &&
     d1->d == d2->d);
 }
+
+#if 0 /* not used */
+/**
+ * @brief Return -1, 0, or 1 depending on whether the first double4
+ * is less than, equal, or greater than the second one
+ */
+int
+double4_cmp(const double4 *d1, const double4 *d2)
+{
+  int cmp = float8_cmp_internal(d1->a, d2->a);
+  if (cmp == 0)
+  {
+    cmp = float8_cmp_internal(d1->b, d2->b);
+    if (cmp == 0)
+    {
+      cmp = float8_cmp_internal(d1->c, d2->c);
+      if (cmp == 0)
+        cmp = float8_cmp_internal(d1->d, d2->d);
+    }
+  }
+  return cmp;
+}
+#endif /* not used */
 
 /*****************************************************************************/
 

@@ -1,12 +1,12 @@
 /*****************************************************************************
  *
  * This MobilityDB code is provided under The PostgreSQL License.
- * Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+ * Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
  * contributors
  *
  * MobilityDB includes portions of PostGIS version 3 source code released
  * under the GNU General Public License (GPLv2 or later).
- * Copyright (c) 2001-2022, PostGIS contributors
+ * Copyright (c) 2001-2023, PostGIS contributors
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written
@@ -23,7 +23,7 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
  * AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
- * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  *****************************************************************************/
 
@@ -37,10 +37,10 @@
 /* PostgreSQL */
 #include <postgres.h>
 #include <lib/stringinfo.h>
-/* MobilityDB */
+/* MEOS */
+#include "general/meos_catalog.h"
 #include "general/span.h"
-#include "general/temporal_catalog.h"
-#include "general/timetypes.h"
+#include "general/set.h"
 #include "general/tbox.h"
 #include "point/stbox.h"
 
@@ -49,7 +49,6 @@
 #include <c.h>
 #include <utils/palloc.h>
 #include <utils/elog.h>
-// #include <catalog/pg_type.h>
 #include <utils/array.h>
 #include <utils/lsyscache.h>
 #include <catalog/pg_type_d.h> /* for TIMESTAMPTZOID and similar */
@@ -86,6 +85,31 @@ extern Datum float8_numeric(PG_FUNCTION_ARGS);
 #define RTFrontStrategyNumber         33    /* for <</ */
 #define RTBackStrategyNumber          34    /* for />> */
 #define RTOverBackStrategyNumber      35    /* for /&> */
+
+/*****************************************************************************
+ * Generic oGIN perator strategy numbers indepenedent of the argument types
+ *****************************************************************************/
+
+#define GinOverlapStrategy             1    /* for && @@ */
+#define GinContainsStrategy            2    /* for @> @? */
+#define GinContainedStrategy           3    /* for <@ ?@ */
+#define GinEqualStrategy               4    /* for =  @=*/
+
+/*****************************************************************************
+ * Struct definitions for the unnest operation
+ *****************************************************************************/
+
+/**
+ * Structure to represent the state when unnesting a temporal type.
+ */
+typedef struct
+{
+  bool done;
+  int i;
+  int count;
+  Temporal *temp;  /* Temporal value to unnest */
+  Datum *values;   /* Values obtained by getValues(temp) */
+} TempUnnestState;
 
 /*****************************************************************************
  * Struct definitions for GisT indexes copied from PostgreSQL
@@ -129,6 +153,17 @@ typedef struct
 #define FLOAT8_MIN(a,b)  (FLOAT8_LT(a, b) ? (a) : (b))
 
 /*****************************************************************************
+ * Struct definitions for SP-GiST indexes
+ *****************************************************************************/
+
+/** Enumeration for the types of SP-GiST indexes */
+typedef enum
+{
+  SPGIST_QUADTREE,
+  SPGIST_KDTREE,
+} SPGistIndexType;
+
+/*****************************************************************************
  * Typmod definitions
  *****************************************************************************/
 
@@ -150,6 +185,15 @@ struct tempsubtype_struct
 /* Initialization function */
 
 extern void _PG_init(void);
+
+/* Miscellaneous */
+
+extern uint32_t time_max_header_size(void);
+
+/* PostgreSQL cache functions */
+
+extern FunctionCallInfo fetch_fcinfo(void);
+extern void store_fcinfo(FunctionCallInfo fcinfo);
 
 /* Typmod functions */
 

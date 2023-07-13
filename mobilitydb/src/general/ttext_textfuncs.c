@@ -1,12 +1,12 @@
 /*****************************************************************************
  * @brief
  * This MobilityDB code is provided under The PostgreSQL License.
- * Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+ * Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
  * contributors
  *
  * MobilityDB includes portions of PostGIS version 3 source code released
  * under the GNU General Public License (GPLv2 or later).
- * Copyright (c) 2001-2022, PostGIS contributors
+ * Copyright (c) 2001-2023, PostGIS contributors
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written
@@ -23,24 +23,29 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
  * AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
- * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  *****************************************************************************/
 
 /**
+ * @file
  * @brief Temporal text functions: `textcat`, `lower`, `upper`.
  */
 
-#include "general/ttext_textfuncs.h"
-
-/* MobilityDB */
+/* PostgreSQL */
+#include <postgres.h>
+#include <fmgr.h>
+/* MEOS */
+#include <meos.h>
 #include "general/temporal.h"
-#include "general/temporal_util.h"
+#include "general/ttext_textfuncs.h"
+#include "general/type_util.h"
 
 /*****************************************************************************
  * Text concatenation
  *****************************************************************************/
 
+PGDLLEXPORT Datum Textcat_text_ttext(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Textcat_text_ttext);
 /**
  * @ingroup mobilitydb_temporal_text
@@ -48,7 +53,7 @@ PG_FUNCTION_INFO_V1(Textcat_text_ttext);
  * @sqlfunc textcat()
  * @sqlop @p ||
  */
-PGDLLEXPORT Datum
+Datum
 Textcat_text_ttext(PG_FUNCTION_ARGS)
 {
   Datum value = PG_GETARG_DATUM(0);
@@ -58,6 +63,7 @@ Textcat_text_ttext(PG_FUNCTION_ARGS)
   PG_RETURN_POINTER(result);
 }
 
+PGDLLEXPORT Datum Textcat_ttext_text(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Textcat_ttext_text);
 /**
  * @ingroup mobilitydb_temporal_text
@@ -65,7 +71,7 @@ PG_FUNCTION_INFO_V1(Textcat_ttext_text);
  * @sqlfunc textcat()
  * @sqlop @p ||
  */
-PGDLLEXPORT Datum
+Datum
 Textcat_ttext_text(PG_FUNCTION_ARGS)
 {
   Temporal *temp = PG_GETARG_TEMPORAL_P(0);
@@ -75,6 +81,7 @@ Textcat_ttext_text(PG_FUNCTION_ARGS)
   PG_RETURN_POINTER(result);
 }
 
+PGDLLEXPORT Datum Textcat_ttext_ttext(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Textcat_ttext_ttext);
 /**
  * @ingroup mobilitydb_temporal_text
@@ -82,7 +89,7 @@ PG_FUNCTION_INFO_V1(Textcat_ttext_ttext);
  * @sqlfunc textcat()
  * @sqlop @p ||
  */
-PGDLLEXPORT Datum
+Datum
 Textcat_ttext_ttext(PG_FUNCTION_ARGS)
 {
   Temporal *temp1 = PG_GETARG_TEMPORAL_P(0);
@@ -90,20 +97,21 @@ Textcat_ttext_ttext(PG_FUNCTION_ARGS)
   Temporal *result = textfunc_ttext_ttext(temp1, temp2, &datum_textcat);
   PG_FREE_IF_COPY(temp1, 0);
   PG_FREE_IF_COPY(temp2, 1);
-  if (result == NULL)
+  if (! result)
     PG_RETURN_NULL();
   PG_RETURN_POINTER(result);
 }
 
 /*****************************************************************************/
 
+PGDLLEXPORT Datum Ttext_upper(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Ttext_upper);
 /**
  * @ingroup mobilitydb_temporal_text
  * @brief Transform the temporal text value into uppercase
  * @sqlfunc upper()
  */
-PGDLLEXPORT Datum
+Datum
 Ttext_upper(PG_FUNCTION_ARGS)
 {
   Temporal *temp = PG_GETARG_TEMPORAL_P(0);
@@ -112,13 +120,14 @@ Ttext_upper(PG_FUNCTION_ARGS)
   PG_RETURN_POINTER(result);
 }
 
+PGDLLEXPORT Datum Ttext_lower(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Ttext_lower);
 /**
  * @ingroup mobilitydb_temporal_text
  * @brief Transform the temporal text value into lowercase
  * @sqlfunc lower()
  */
-PGDLLEXPORT Datum
+Datum
 Ttext_lower(PG_FUNCTION_ARGS)
 {
   Temporal *temp = PG_GETARG_TEMPORAL_P(0);

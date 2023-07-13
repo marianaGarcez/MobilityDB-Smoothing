@@ -1,12 +1,12 @@
 /*****************************************************************************
  *
  * This MobilityDB code is provided under The PostgreSQL License.
- * Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+ * Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
  * contributors
  *
  * MobilityDB includes portions of PostGIS version 3 source code released
  * under the GNU General Public License (GPLv2 or later).
- * Copyright (c) 2001-2022, PostGIS contributors
+ * Copyright (c) 2001-2023, PostGIS contributors
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written
@@ -23,7 +23,7 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
  * AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
- * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  *****************************************************************************/
 
@@ -38,7 +38,7 @@
 #include <postgres.h>
 /* PostGIS */
 #include <liblwgeom.h>
-/* MobilityDB */
+/* MEOS */
 #include "general/temporal.h"
 #include "point/tpoint.h"
 
@@ -52,16 +52,17 @@
 
 extern POINT2D datum_point2d(Datum value);
 extern POINT3DZ datum_point3dz(Datum value);
+extern void gs_point4d(const GSERIALIZED *gs, POINT4D *p);
 extern void datum_point4d(Datum value, POINT4D *p);
 
-extern const POINT2D *datum_point2d_p(Datum value);
-extern const POINT2D *gserialized_point2d_p(const GSERIALIZED *gs);
-extern const POINT3DZ *datum_point3dz_p(Datum value);
-extern const POINT3DZ *gserialized_point3dz_p(const GSERIALIZED *gs);
-
+extern bool gspoint_eq(const GSERIALIZED *gs1, const GSERIALIZED *gs2);
+extern bool gspoint_same(const GSERIALIZED *gs1, const GSERIALIZED *gs2);
 extern bool datum_point_eq(Datum geopoint1, Datum geopoint2);
+extern bool datum_point_same(Datum geopoint1, Datum geopoint2);
 extern Datum datum2_point_eq(Datum geopoint1, Datum geopoint2);
 extern Datum datum2_point_ne(Datum geopoint1, Datum geopoint2);
+extern Datum datum2_point_same(Datum geopoint1, Datum geopoint2);
+extern Datum datum2_point_nsame(Datum geopoint1, Datum geopoint2);
 
 extern GSERIALIZED *geo_serialize(const LWGEOM *geom);
 extern Datum datum_transform(Datum value, Datum srid);
@@ -84,10 +85,7 @@ extern void ensure_spatial_validity(const Temporal *temp1,
 extern void ensure_not_geodetic(int16 flags);
 extern void ensure_same_geodetic(int16 flags1, int16 flags2);
 extern void ensure_same_srid(int32_t srid1, int32_t srid2);
-extern void ensure_same_srid_stbox(const STBOX *box1, const STBOX *box2);
-extern void ensure_same_srid_tpoint_stbox(const Temporal *temp,
-  const STBOX *box);
-extern void ensure_same_srid_stbox_gs(const STBOX *box, const GSERIALIZED *gs);
+extern void ensure_same_srid_stbox_gs(const STBox *box, const GSERIALIZED *gs);
 extern void ensure_same_dimensionality(int16 flags1, int16 flags2);
 extern void ensure_same_spatial_dimensionality(int16 flags1, int16 flags2);
 extern void ensure_same_spatial_dimensionality_temp_box(int16 flags1, int16 flags2);
@@ -95,7 +93,7 @@ extern void ensure_same_dimensionality_gs(const GSERIALIZED *gs1,
   const GSERIALIZED *gs2);
 extern void ensure_same_dimensionality_tpoint_gs(const Temporal *temp,
   const GSERIALIZED *gs);
-extern void ensure_same_spatial_dimensionality_stbox_gs(const STBOX *box1,
+extern void ensure_same_spatial_dimensionality_stbox_gs(const STBox *box1,
   const GSERIALIZED *gs);
 extern void ensure_has_Z(int16 flags);
 extern void ensure_has_not_Z(int16 flags);
@@ -148,33 +146,21 @@ extern LWGEOM **lwpointarr_remove_duplicates(LWGEOM **points, int count,
 extern LWGEOM *lwpointarr_make_trajectory(LWGEOM **lwpoints, int count,
   interpType interp);
 extern LWLINE *lwline_make(Datum value1, Datum value2);
+extern LWGEOM *lwcoll_from_points_lines(LWGEOM **points, LWGEOM **lines,
+  int npoints, int nlines);
 
 /* Functions for spatial reference systems */
 
 extern TInstant *tpointinst_transform(const TInstant *inst, int srid);
-extern TSequence *tpointdiscseq_transform(const TSequence *is, int srid);
-extern TSequence *tpointcontseq_transform(const TSequence *seq, int srid);
+extern TSequence *tpointseq_disc_transform(const TSequence *is, int srid);
+extern TSequence *tpointseq_cont_transform(const TSequence *seq, int srid);
 extern TSequenceSet *tpointseqset_transform(const TSequenceSet *ss, int srid);
 extern Temporal *tpoint_transform(const Temporal *temp, int srid);
 
 /* Set precision of the coordinates */
 
-extern Datum datum_round_geo(Datum value, Datum prec);
-extern Temporal *tpoint_round(const Temporal *temp, int prec);
-
-/* Functions for extracting coordinates */
-
-extern Temporal *tpoint_get_coord(const Temporal *temp, int coord);
-
-/* Restriction functions */
-
-extern TSequence **tpointseq_at_geometry(const TSequence *seq,
-  const GSERIALIZED *gs, int *count);
-extern Temporal *tpoint_at_stbox1(const Temporal *temp, const STBOX *box,
-  bool upper_inc);
-extern Temporal *tpoint_minus_stbox(const Temporal *temp, const STBOX *box);
-extern Period **tpointseq_interperiods(const TSequence *seq,
-  GSERIALIZED *gsinter, int *count);
+extern Datum datum_round_geo(Datum value, Datum size);
+extern Temporal *tpoint_round(const Temporal *temp, Datum size);
 
 /*****************************************************************************/
 

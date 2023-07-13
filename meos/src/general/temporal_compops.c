@@ -1,12 +1,12 @@
 /*****************************************************************************
  *
  * This MobilityDB code is provided under The PostgreSQL License.
- * Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+ * Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
  * contributors
  *
  * MobilityDB includes portions of PostGIS version 3 source code released
  * under the GNU General Public License (GPLv2 or later).
- * Copyright (c) 2001-2022, PostGIS contributors
+ * Copyright (c) 2001-2023, PostGIS contributors
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written
@@ -23,20 +23,22 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
  * AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
- * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  *****************************************************************************/
 
 /**
+ * @file
  * @brief Temporal comparison operators: #=, #<>, #<, #>, #<=, #>=.
  */
 
 #include "general/temporal_compops.h"
 
-/* MobilityDB */
+/* MEOS */
 #include <meos.h>
-#include "general/temporal_util.h"
+#include <meos_internal.h>
 #include "general/lifting.h"
+#include "general/type_util.h"
 #include "point/tpoint_spatialfuncs.h"
 
 /*****************************************************************************
@@ -47,8 +49,8 @@
  * @brief Return the temporal comparison of the base value and the temporal value.
  */
 Temporal *
-tcomp_temporal_base(const Temporal *temp, Datum value, mobdbType basetype,
-  Datum (*func)(Datum, Datum, mobdbType, mobdbType), bool invert)
+tcomp_temporal_base(const Temporal *temp, Datum value, meosType basetype,
+  Datum (*func)(Datum, Datum, meosType, meosType), bool invert)
 {
   LiftedFunctionInfo lfinfo;
   memset(&lfinfo, 0, sizeof(LiftedFunctionInfo));
@@ -60,7 +62,7 @@ tcomp_temporal_base(const Temporal *temp, Datum value, mobdbType basetype,
   lfinfo.restype = T_TBOOL;
   lfinfo.reslinear = false;
   lfinfo.invert = invert;
-  lfinfo.discont = MOBDB_FLAGS_GET_LINEAR(temp->flags);
+  lfinfo.discont = MEOS_FLAGS_GET_LINEAR(temp->flags);
   lfinfo.tpfunc_base = NULL;
   lfinfo.tpfunc = NULL;
   return tfunc_temporal_base(temp, value, &lfinfo);
@@ -71,7 +73,7 @@ tcomp_temporal_base(const Temporal *temp, Datum value, mobdbType basetype,
  */
 Temporal *
 tcomp_temporal_temporal(const Temporal *temp1, const Temporal *temp2,
-  Datum (*func)(Datum, Datum, mobdbType, mobdbType))
+  Datum (*func)(Datum, Datum, meosType, meosType))
 {
   if (tgeo_type(temp1->temptype))
   {
@@ -88,8 +90,8 @@ tcomp_temporal_temporal(const Temporal *temp1, const Temporal *temp2,
   lfinfo.restype = T_TBOOL;
   lfinfo.reslinear = false;
   lfinfo.invert = INVERT_NO;
-  lfinfo.discont = MOBDB_FLAGS_GET_LINEAR(temp1->flags) ||
-    MOBDB_FLAGS_GET_LINEAR(temp2->flags);
+  lfinfo.discont = MEOS_FLAGS_GET_LINEAR(temp1->flags) ||
+    MEOS_FLAGS_GET_LINEAR(temp2->flags);
   lfinfo.tpfunc_base = NULL;
   lfinfo.tpfunc = NULL;
   Temporal *result = tfunc_temporal_temporal(temp1, temp2, &lfinfo);

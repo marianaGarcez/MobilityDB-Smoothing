@@ -1,12 +1,12 @@
 /*****************************************************************************
  *
  * This MobilityDB code is provided under The PostgreSQL License.
- * Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+ * Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
  * contributors
  *
  * MobilityDB includes portions of PostGIS version 3 source code released
  * under the GNU General Public License (GPLv2 or later).
- * Copyright (c) 2001-2022, PostGIS contributors
+ * Copyright (c) 2001-2023, PostGIS contributors
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written
@@ -23,11 +23,12 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
  * AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
- * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  *****************************************************************************/
 
 /**
+ * @file
  * @brief Basic functions for temporal network points.
  */
 
@@ -37,19 +38,20 @@
 #include <postgres.h>
 /* MEOS */
 #include <meos.h>
-#include "general/temporal_parser.h"
-#include "general/temporal_util.h"
 #include "general/lifting.h"
+#include "general/type_parser.h"
+#include "general/type_util.h"
 #include "npoint/tnpoint_static.h"
 #include "npoint/tnpoint_parser.h"
 /* MobilityDB */
-#include "pg_general/temporal_catalog.h"
+#include "pg_general/meos_catalog.h"
 #include "pg_npoint/tnpoint_static.h"
 
 /*****************************************************************************
  * General functions
  *****************************************************************************/
 
+#if 0 /* not used */
 /**
  * @brief Convert a C array of int64 values into a PostgreSQL array
  */
@@ -59,7 +61,6 @@ int64arr_array(const int64 *int64arr, int count)
   return construct_array((Datum *)int64arr, count, INT8OID, 8, true, 'd');
 }
 
-#if 0 /* not used */
 /**
  * @brief Convert a C array of network point values into a PostgreSQL array
  */
@@ -85,13 +86,14 @@ nsegmentarr_array(Nsegment **nsegmentarr, int count)
  * Input/output functions
  *****************************************************************************/
 
+PGDLLEXPORT Datum Tnpoint_in(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Tnpoint_in);
 /**
- * @ingroup mobilitydb_temporal_in_out
+ * @ingroup mobilitydb_temporal_inout
  * @brief Input function for temporal network points
  * @sqlfunc tnpoint_in()
  */
-PGDLLEXPORT Datum
+Datum
 Tnpoint_in(PG_FUNCTION_ARGS)
 {
   const char *input = PG_GETARG_CSTRING(0);
@@ -104,13 +106,14 @@ Tnpoint_in(PG_FUNCTION_ARGS)
  * Cast functions
  *****************************************************************************/
 
+PGDLLEXPORT Datum Tnpoint_to_tgeompoint(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Tnpoint_to_tgeompoint);
 /**
  * @ingroup mobilitydb_temporal_cast
  * @brief Cast a temporal network point as a temporal geometric point
  * @sqlfunc tgeompoint()
  */
-PGDLLEXPORT Datum
+Datum
 Tnpoint_to_tgeompoint(PG_FUNCTION_ARGS)
 {
   Temporal *temp = PG_GETARG_TEMPORAL_P(0);
@@ -119,19 +122,20 @@ Tnpoint_to_tgeompoint(PG_FUNCTION_ARGS)
   PG_RETURN_POINTER(result);
 }
 
+PGDLLEXPORT Datum Tgeompoint_to_tnpoint(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Tgeompoint_to_tnpoint);
 /**
  * @ingroup mobilitydb_temporal_cast
  * @brief Cast a temporal geometric point as a temporal network point
  * @sqlfunc tnpoint()
  */
-PGDLLEXPORT Datum
+Datum
 Tgeompoint_to_tnpoint(PG_FUNCTION_ARGS)
 {
   Temporal *temp = PG_GETARG_TEMPORAL_P(0);
   Temporal *result = tgeompoint_tnpoint(temp);
   PG_FREE_IF_COPY(temp, 0);
-  if (result == NULL)
+  if (! result)
     PG_RETURN_NULL();
   PG_RETURN_POINTER(result);
 }
@@ -160,6 +164,7 @@ tnpoint_round(const Temporal *temp, Datum size)
   return result;
 }
 
+PGDLLEXPORT Datum Tnpoint_round(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Tnpoint_round);
 /**
  * @ingroup mobilitydb_temporal_transf
@@ -167,7 +172,7 @@ PG_FUNCTION_INFO_V1(Tnpoint_round);
  * number of decimal places.
  * @sqlfunc round()
  */
-PGDLLEXPORT Datum
+Datum
 Tnpoint_round(PG_FUNCTION_ARGS)
 {
   Temporal *temp = PG_GETARG_TEMPORAL_P(0);
@@ -177,17 +182,33 @@ Tnpoint_round(PG_FUNCTION_ARGS)
   PG_RETURN_POINTER(result);
 }
 
+PGDLLEXPORT Datum Npointset_round(PG_FUNCTION_ARGS);
+PG_FUNCTION_INFO_V1(Npointset_round);
+/**
+ * @ingroup mobilitydb_temporal_spatial_transf
+ * @brief Sets the precision of the coordinates of the geometry set
+ * @sqlfunc round()
+ */
+Datum
+Npointset_round(PG_FUNCTION_ARGS)
+{
+  Set *s = PG_GETARG_SET_P(0);
+  Datum size = PG_GETARG_DATUM(1);
+  PG_RETURN_POINTER(npointset_round(s, size));
+}
+
 /*****************************************************************************
  * Accessor functions
  *****************************************************************************/
 
+PGDLLEXPORT Datum Tnpoint_positions(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Tnpoint_positions);
 /**
  * @ingroup mobilitydb_temporal_accessor
  * @brief Return the network segments covered by the temporal network point
  * @sqlfunc positions()
  */
-PGDLLEXPORT Datum
+Datum
 Tnpoint_positions(PG_FUNCTION_ARGS)
 {
   Temporal *temp = PG_GETARG_TEMPORAL_P(0);
@@ -199,13 +220,14 @@ Tnpoint_positions(PG_FUNCTION_ARGS)
   PG_RETURN_POINTER(result);
 }
 
+PGDLLEXPORT Datum Tnpoint_route(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Tnpoint_route);
 /**
  * @ingroup mobilitydb_temporal_accessor
  * @brief Return the route of a temporal network point
  * @sqlfunc route()
  */
-PGDLLEXPORT Datum
+Datum
 Tnpoint_route(PG_FUNCTION_ARGS)
 {
   Temporal *temp = PG_GETARG_TEMPORAL_P(0);
@@ -214,20 +236,18 @@ Tnpoint_route(PG_FUNCTION_ARGS)
   PG_RETURN_INT64(result);
 }
 
+PGDLLEXPORT Datum Tnpoint_routes(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Tnpoint_routes);
 /**
  * @ingroup mobilitydb_temporal_accessor
  * @brief Return the array of routes of a temporal network point
  * @sqlfunc routes()
  */
-PGDLLEXPORT Datum
+Datum
 Tnpoint_routes(PG_FUNCTION_ARGS)
 {
   Temporal *temp = PG_GETARG_TEMPORAL_P(0);
-  int count;
-  int64 *routes = tnpoint_routes(temp, &count);
-  ArrayType *result = int64arr_array(routes, count);
-  pfree(routes);
+  Set *result = tnpoint_routes(temp);
   PG_FREE_IF_COPY(temp, 0);
   PG_RETURN_POINTER(result);
 }

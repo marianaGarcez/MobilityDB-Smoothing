@@ -1,12 +1,12 @@
 /*****************************************************************************
  *
  * This MobilityDB code is provided under The PostgreSQL License.
- * Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+ * Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
  * contributors
  *
  * MobilityDB includes portions of PostGIS version 3 source code released
  * under the GNU General Public License (GPLv2 or later).
- * Copyright (c) 2001-2022, PostGIS contributors
+ * Copyright (c) 2001-2023, PostGIS contributors
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written
@@ -23,11 +23,12 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
  * AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
- * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  *****************************************************************************/
 
 /**
+ * @file
  * @brief Functions for selectivity estimation of operators on temporal points.
  */
 
@@ -43,12 +44,11 @@
 /* MEOS */
 #include <meos.h>
 #include <meos_internal.h>
+#include "general/meos_catalog.h"
 /* MobilityDB */
 #include "pg_general/span_selfuncs.h"
-#include "pg_general/temporal_catalog.h"
 #include "pg_general/temporal_selfuncs.h"
 #include "pg_point/tpoint_analyze.h"
-#include "pg_npoint/tnpoint_selfuncs.h"
 
 /*****************************************************************************
  * Boolean functions for the operators
@@ -56,7 +56,7 @@
  *****************************************************************************/
 
 /**
- * Return true if a contains b, false otherwise.
+ * @brief Return true if a contains b, false otherwise.
  */
 static int
 nd_box_contains(const ND_BOX *a, const ND_BOX *b, int ndims)
@@ -71,7 +71,7 @@ nd_box_contains(const ND_BOX *a, const ND_BOX *b, int ndims)
 }
 
 /**
- * Return true if a is strictly left of b, false otherwise.
+ * @brief Return true if a is strictly left of b, false otherwise.
  */
 static bool
 nd_box_left(const ND_BOX *a, const ND_BOX *b)
@@ -80,7 +80,7 @@ nd_box_left(const ND_BOX *a, const ND_BOX *b)
 }
 
 /**
- * Return true if a does not extend to right of b, false otherwise.
+ * @brief Return true if a does not extend to right of b, false otherwise.
  */
 static bool
 nd_box_overleft(const ND_BOX *a, const ND_BOX *b)
@@ -89,7 +89,7 @@ nd_box_overleft(const ND_BOX *a, const ND_BOX *b)
 }
 
 /**
- * Return true if a is strictly right of b, false otherwise.
+ * @brief Return true if a is strictly right of b, false otherwise.
  */
 static bool
 nd_box_right(const ND_BOX *a, const ND_BOX *b)
@@ -98,7 +98,7 @@ nd_box_right(const ND_BOX *a, const ND_BOX *b)
 }
 
 /**
- * Return true if a does not extend to left of b, false otherwise.
+ * @brief Return true if a does not extend to left of b, false otherwise.
  */
 static bool
 nd_box_overright(const ND_BOX *a, const ND_BOX *b)
@@ -107,7 +107,7 @@ nd_box_overright(const ND_BOX *a, const ND_BOX *b)
 }
 
 /**
- * Return true if a is strictly below of b, false otherwise.
+ * @brief Return true if a is strictly below of b, false otherwise.
  */
 static bool
 nd_box_below(const ND_BOX *a, const ND_BOX *b)
@@ -116,7 +116,7 @@ nd_box_below(const ND_BOX *a, const ND_BOX *b)
 }
 
 /**
- * Return true if a does not extend above of b, false otherwise.
+ * @brief Return true if a does not extend above of b, false otherwise.
  */
 static bool
 nd_box_overbelow(const ND_BOX *a, const ND_BOX *b)
@@ -125,7 +125,7 @@ nd_box_overbelow(const ND_BOX *a, const ND_BOX *b)
 }
 
 /**
- * Return true if a is strictly above of b, false otherwise.
+ * @brief Return true if a is strictly above of b, false otherwise.
  */
 static bool
 nd_box_above(const ND_BOX *a, const ND_BOX *b)
@@ -134,7 +134,7 @@ nd_box_above(const ND_BOX *a, const ND_BOX *b)
 }
 
 /**
- * Return true if a does not extend below of b, false otherwise.
+ * @brief Return true if a does not extend below of b, false otherwise.
  */
 static bool
 nd_box_overabove(const ND_BOX *a, const ND_BOX *b)
@@ -143,7 +143,7 @@ nd_box_overabove(const ND_BOX *a, const ND_BOX *b)
 }
 
 /**
- * Return true if a is strictly front of b, false otherwise.
+ * @brief Return true if a is strictly front of b, false otherwise.
  */
 static bool
 nd_box_front(const ND_BOX *a, const ND_BOX *b)
@@ -152,7 +152,7 @@ nd_box_front(const ND_BOX *a, const ND_BOX *b)
 }
 
 /**
- * Return true if a does not extend to the back of b, false otherwise.
+ * @brief Return true if a does not extend to the back of b, false otherwise.
  */
 static bool
 nd_box_overfront(const ND_BOX *a, const ND_BOX *b)
@@ -161,7 +161,7 @@ nd_box_overfront(const ND_BOX *a, const ND_BOX *b)
 }
 
 /**
- * Return true if a strictly back of b, false otherwise.
+ * @brief Return true if a strictly back of b, false otherwise.
  */
 static bool
 nd_box_back(const ND_BOX *a, const ND_BOX *b)
@@ -170,7 +170,7 @@ nd_box_back(const ND_BOX *a, const ND_BOX *b)
 }
 
 /**
- * Return true if a does not extend to the front of b, false otherwise.
+ * @brief Return true if a does not extend to the front of b, false otherwise.
  */
 static bool
 nd_box_overback(const ND_BOX *a, const ND_BOX *b)
@@ -185,7 +185,7 @@ nd_box_overback(const ND_BOX *a, const ND_BOX *b)
  *****************************************************************************/
 
 /**
- * Return the proportion of b2 that is left of b1.
+ * @brief Return the proportion of b2 that is left of b1.
  */
 static double
 nd_box_ratio_left(const ND_BOX *b1, const ND_BOX *b2)
@@ -204,7 +204,7 @@ nd_box_ratio_left(const ND_BOX *b1, const ND_BOX *b2)
 }
 
 /**
- * Return the proportion of b2 that is overleft of b1.
+ * @brief Return the proportion of b2 that is overleft of b1.
  */
 static double
 nd_box_ratio_overleft(const ND_BOX *b1, const ND_BOX *b2)
@@ -223,7 +223,7 @@ nd_box_ratio_overleft(const ND_BOX *b1, const ND_BOX *b2)
 }
 
 /**
- * Return the proportion of b2 that is right of b1.
+ * @brief Return the proportion of b2 that is right of b1.
  */
 static double
 nd_box_ratio_right(const ND_BOX *b1, const ND_BOX *b2)
@@ -242,7 +242,7 @@ nd_box_ratio_right(const ND_BOX *b1, const ND_BOX *b2)
 }
 
 /**
- * Return the proportion of b2 that is overright of b1.
+ * @brief Return the proportion of b2 that is overright of b1.
  */
 static double
 nd_box_ratio_overright(const ND_BOX *b1, const ND_BOX *b2)
@@ -261,7 +261,7 @@ nd_box_ratio_overright(const ND_BOX *b1, const ND_BOX *b2)
 }
 
 /**
- * Return the proportion of b2 that is below of b1.
+ * @brief Return the proportion of b2 that is below of b1.
  */
 static double
 nd_box_ratio_below(const ND_BOX *b1, const ND_BOX *b2)
@@ -280,7 +280,7 @@ nd_box_ratio_below(const ND_BOX *b1, const ND_BOX *b2)
 }
 
 /**
- * Return the proportion of b2 that is overbelow of b1.
+ * @brief Return the proportion of b2 that is overbelow of b1.
  */
 static double
 nd_box_ratio_overbelow(const ND_BOX *b1, const ND_BOX *b2)
@@ -299,7 +299,7 @@ nd_box_ratio_overbelow(const ND_BOX *b1, const ND_BOX *b2)
 }
 
 /**
- * Return the proportion of b2 that is above of b1.
+ * @brief Return the proportion of b2 that is above of b1.
  */
 static double
 nd_box_ratio_above(const ND_BOX *b1, const ND_BOX *b2)
@@ -318,7 +318,7 @@ nd_box_ratio_above(const ND_BOX *b1, const ND_BOX *b2)
 }
 
 /**
- * Return the proportion of b2 that is overabove of b1.
+ * @brief Return the proportion of b2 that is overabove of b1.
  */
 static double
 nd_box_ratio_overabove(const ND_BOX *b1, const ND_BOX *b2)
@@ -337,7 +337,7 @@ nd_box_ratio_overabove(const ND_BOX *b1, const ND_BOX *b2)
 }
 
 /**
- * Return the proportion of b2 that is front of b1.
+ * @brief Return the proportion of b2 that is front of b1.
  */
 static double
 nd_box_ratio_front(const ND_BOX *b1, const ND_BOX *b2)
@@ -356,7 +356,7 @@ nd_box_ratio_front(const ND_BOX *b1, const ND_BOX *b2)
 }
 
 /**
- * Return the proportion of b2 that is overfront of b1.
+ * @brief Return the proportion of b2 that is overfront of b1.
  */
 static double
 nd_box_ratio_overfront(const ND_BOX *b1, const ND_BOX *b2)
@@ -375,7 +375,7 @@ nd_box_ratio_overfront(const ND_BOX *b1, const ND_BOX *b2)
 }
 
 /**
- * Return the proportion of b2 that is back of b1.
+ * @brief Return the proportion of b2 that is back of b1.
  */
 static double
 nd_box_ratio_back(const ND_BOX *b1, const ND_BOX *b2)
@@ -394,7 +394,7 @@ nd_box_ratio_back(const ND_BOX *b1, const ND_BOX *b2)
 }
 
 /**
- * Return the proportion of b2 that is overback of b1.
+ * @brief Return the proportion of b2 that is overback of b1.
  */
 static double
 nd_box_ratio_overback(const ND_BOX *b1, const ND_BOX *b2)
@@ -413,34 +413,34 @@ nd_box_ratio_overback(const ND_BOX *b1, const ND_BOX *b2)
 }
 
 /**
- * Dispatch function for the position operators
+ * @brief Dispatch function for the position operators
  */
 static double
-nd_box_ratio_position(const ND_BOX *b1, const ND_BOX *b2, CachedOp op)
+nd_box_ratio_position(const ND_BOX *b1, const ND_BOX *b2, meosOper oper)
 {
-  if (op == LEFT_OP)
+  if (oper == LEFT_OP)
     return nd_box_ratio_left(b1, b2);
-  else if (op == OVERLEFT_OP)
+  else if (oper == OVERLEFT_OP)
     return nd_box_ratio_overleft(b1, b2);
-  else if (op == RIGHT_OP)
+  else if (oper == RIGHT_OP)
     return nd_box_ratio_right(b1, b2);
-  else if (op == OVERRIGHT_OP)
+  else if (oper == OVERRIGHT_OP)
     return nd_box_ratio_overright(b1, b2);
-  else if (op == BELOW_OP)
+  else if (oper == BELOW_OP)
     return nd_box_ratio_below(b1, b2);
-  else if (op == OVERBELOW_OP)
+  else if (oper == OVERBELOW_OP)
     return nd_box_ratio_overbelow(b1, b2);
-  else if (op == ABOVE_OP)
+  else if (oper == ABOVE_OP)
     return nd_box_ratio_above(b1, b2);
-  else if (op == OVERABOVE_OP)
+  else if (oper == OVERABOVE_OP)
     return nd_box_ratio_overabove(b1, b2);
-  else if (op == FRONT_OP)
+  else if (oper == FRONT_OP)
     return nd_box_ratio_front(b1, b2);
-  else if (op == OVERFRONT_OP)
+  else if (oper == OVERFRONT_OP)
     return nd_box_ratio_overfront(b1, b2);
-  else if (op == BACK_OP)
+  else if (oper == BACK_OP)
     return nd_box_ratio_back(b1, b2);
-  else if (op == OVERBACK_OP)
+  else if (oper == OVERBACK_OP)
     return nd_box_ratio_overback(b1, b2);
   return FALLBACK_ND_SEL; /* make compiler quiet */
 }
@@ -450,85 +450,13 @@ nd_box_ratio_position(const ND_BOX *b1, const ND_BOX *b2, CachedOp op)
  *****************************************************************************/
 
 /**
- * Transform the constant into an STBOX
+ * @brief Set the values of an ND_BOX from an STBox
  *
- * @note This function is also used for temporal network points
- */
-static bool
-tpoint_const_stbox(Node *other, STBOX *box)
-{
-  Oid consttypid = ((Const *) other)->consttype;
-  mobdbType type = oid_type(consttypid);
-  if (tgeo_basetype(type))
-    geo_set_stbox((GSERIALIZED *) PointerGetDatum(((Const *) other)->constvalue),
-      box);
-  else if (type == T_TIMESTAMPTZ)
-    timestamp_set_stbox(DatumGetTimestampTz(((Const *) other)->constvalue), box);
-  else if (type == T_TIMESTAMPSET)
-    timestampset_stbox_slice(((Const *) other)->constvalue, box);
-  else if (type == T_PERIOD)
-    period_set_stbox(DatumGetSpanP(((Const *) other)->constvalue), box);
-  else if (type == T_PERIODSET)
-    periodset_stbox_slice(((Const *) other)->constvalue, box);
-  else if (type == T_STBOX)
-    memcpy(box, DatumGetSTboxP(((Const *) other)->constvalue), sizeof(STBOX));
-  else if (tspatial_type(type))
-    temporal_set_bbox(DatumGetTemporalP(((Const *) other)->constvalue), box);
-  else
-    return false;
-  return true;
-}
-
-/**
- * Get the enum value associated to the operator
- */
-static bool
-tpoint_cachedop(Oid operid, CachedOp *cachedOp)
-{
-  for (int i = OVERLAPS_OP; i <= OVERAFTER_OP; i++)
-  {
-    if (operid == oper_oid((CachedOp) i, T_GEOMETRY, T_TGEOMPOINT) ||
-        operid == oper_oid((CachedOp) i, T_TIMESTAMPTZ, T_TGEOMPOINT) ||
-        operid == oper_oid((CachedOp) i, T_TIMESTAMPSET, T_TGEOMPOINT) ||
-        operid == oper_oid((CachedOp) i, T_PERIOD, T_TGEOMPOINT) ||
-        operid == oper_oid((CachedOp) i, T_PERIODSET, T_TGEOMPOINT) ||
-        operid == oper_oid((CachedOp) i, T_STBOX, T_TGEOMPOINT) ||
-        operid == oper_oid((CachedOp) i, T_TGEOMPOINT, T_GEOMETRY) ||
-        operid == oper_oid((CachedOp) i, T_TGEOMPOINT, T_TIMESTAMPTZ) ||
-        operid == oper_oid((CachedOp) i, T_TGEOMPOINT, T_TIMESTAMPSET) ||
-        operid == oper_oid((CachedOp) i, T_TGEOMPOINT, T_PERIOD) ||
-        operid == oper_oid((CachedOp) i, T_TGEOMPOINT, T_PERIODSET) ||
-        operid == oper_oid((CachedOp) i, T_TGEOMPOINT, T_STBOX) ||
-        operid == oper_oid((CachedOp) i, T_TGEOMPOINT, T_TGEOMPOINT) ||
-
-        operid == oper_oid((CachedOp) i, T_GEOGRAPHY, T_TGEOGPOINT) ||
-        operid == oper_oid((CachedOp) i, T_TIMESTAMPTZ, T_TGEOGPOINT) ||
-        operid == oper_oid((CachedOp) i, T_TIMESTAMPSET, T_TGEOGPOINT) ||
-        operid == oper_oid((CachedOp) i, T_PERIOD, T_TGEOGPOINT) ||
-        operid == oper_oid((CachedOp) i, T_PERIODSET, T_TGEOGPOINT) ||
-        operid == oper_oid((CachedOp) i, T_STBOX, T_TGEOGPOINT) ||
-        operid == oper_oid((CachedOp) i, T_TGEOGPOINT, T_GEOGRAPHY) ||
-        operid == oper_oid((CachedOp) i, T_TGEOGPOINT, T_TIMESTAMPTZ) ||
-        operid == oper_oid((CachedOp) i, T_TGEOGPOINT, T_TIMESTAMPSET) ||
-        operid == oper_oid((CachedOp) i, T_TGEOGPOINT, T_PERIOD) ||
-        operid == oper_oid((CachedOp) i, T_TGEOGPOINT, T_PERIODSET) ||
-        operid == oper_oid((CachedOp) i, T_TGEOGPOINT, T_STBOX) ||
-        operid == oper_oid((CachedOp) i, T_TGEOGPOINT, T_TGEOGPOINT))
-      {
-        *cachedOp = (CachedOp) i;
-        return true;
-      }
-  }
-  return false;
-}
-
-/**
- * Set the values of an ND_BOX from an STBOX
  * The function only takes into account the x, y, and z dimensions of the box?
  * and assumes that they exist. This is to be ensured by the calling function.
  */
 static void
-nd_box_from_stbox(const STBOX *box, ND_BOX *nd_box)
+nd_box_from_stbox(const STBox *box, ND_BOX *nd_box)
 {
   int d = 0;
 
@@ -539,8 +467,8 @@ nd_box_from_stbox(const STBOX *box, ND_BOX *nd_box)
   nd_box->min[d] = (float4) box->ymin;
   nd_box->max[d] = (float4) box->ymax;
   d++;
-  if (MOBDB_FLAGS_GET_GEODETIC(box->flags) ||
-    MOBDB_FLAGS_GET_Z(box->flags))
+  if (MEOS_FLAGS_GET_GEODETIC(box->flags) ||
+    MEOS_FLAGS_GET_Z(box->flags))
   {
     nd_box->min[d] = (float4) box->zmin;
     nd_box->max[d] = (float4) box->zmax;
@@ -549,20 +477,19 @@ nd_box_from_stbox(const STBOX *box, ND_BOX *nd_box)
 }
 
 /**
- * Return an estimate of the selectivity of a spatiotemporal search box by
- * looking at data in the ND_STATS structure. The selectivity is a float in
- * [0,1] that estimates the proportion of the rows in the table that will be
- * returned as a result of the search box.
+ * @brief Return an estimate of the selectivity of a spatiotemporal search box
+ * by looking at data in the ND_STATS structure.
  *
+ * The selectivity is a float in [0,1] that estimates the proportion of the
+ * rows in the table that will be returned as a result of the search box.
  * To get our estimate, we need sum up the values * the proportion of each
  * cell in the histogram that satisfies the operator wrt the search box,
  * then divide by the number of features that generated the histogram.
- *
- * This function generalizes PostGIS function estimate_selectivity in file
- * gserialized_estimate.c
+ * @note This function generalizes PostGIS function estimate_selectivity in
+ * file gserialized_estimate.c
  */
-static float8
-geo_sel(VariableStatData *vardata, const STBOX *box, CachedOp op)
+float8
+geo_sel(VariableStatData *vardata, const STBox *box, meosOper oper)
 {
   ND_STATS *nd_stats;
   AttStatsSlot sslot;
@@ -581,8 +508,8 @@ geo_sel(VariableStatData *vardata, const STBOX *box, CachedOp op)
    * differentiate between the bounding box operators for computing the
    * selectivity.
    */
-  bool bboxop = (op == OVERLAPS_OP || op == CONTAINS_OP ||
-    op == CONTAINED_OP || op == SAME_OP);
+  bool bboxop = (oper == OVERLAPS_OP || oper == CONTAINS_OP ||
+    oper == CONTAINED_OP || oper == SAME_OP);
 
   /* Get statistics
    * Currently PostGIS does not set the associated staopN so we
@@ -598,12 +525,12 @@ geo_sel(VariableStatData *vardata, const STBOX *box, CachedOp op)
   free_attstatsslot(&sslot);
 
   /* Calculate the number of common coordinate dimensions  on the histogram */
-  ndims = (int) Min(nd_stats->ndims, MOBDB_FLAGS_GET_Z(box->flags) ? 3 : 2);
+  ndims = (int) Min(nd_stats->ndims, MEOS_FLAGS_GET_Z(box->flags) ? 3 : 2);
 
   /* Initialize nd_box. */
   nd_box_from_stbox(box, &nd_box);
 
-  /* Full histogram extent op box is false? */
+  /* Full histogram extent oper box is false? */
   if (bboxop)
   {
      if(! nd_box_intersects(&(nd_stats->extent), &nd_box, ndims))
@@ -611,24 +538,24 @@ geo_sel(VariableStatData *vardata, const STBOX *box, CachedOp op)
   }
   else
   {
-    if ((op == LEFT_OP && nd_box_overright(&(nd_stats->extent), &nd_box)) ||
-      (op == OVERLEFT_OP && nd_box_right(&(nd_stats->extent), &nd_box)) ||
-      (op == RIGHT_OP && nd_box_overleft(&(nd_stats->extent), &nd_box)) ||
-      (op == OVERRIGHT_OP && nd_box_left(&(nd_stats->extent), &nd_box)) ||
+    if ((oper == LEFT_OP && nd_box_overright(&(nd_stats->extent), &nd_box)) ||
+      (oper == OVERLEFT_OP && nd_box_right(&(nd_stats->extent), &nd_box)) ||
+      (oper == RIGHT_OP && nd_box_overleft(&(nd_stats->extent), &nd_box)) ||
+      (oper == OVERRIGHT_OP && nd_box_left(&(nd_stats->extent), &nd_box)) ||
 
-      (op == BELOW_OP && nd_box_overabove(&(nd_stats->extent), &nd_box)) ||
-      (op == OVERBELOW_OP && nd_box_above(&(nd_stats->extent), &nd_box)) ||
-      (op == ABOVE_OP && nd_box_overbelow(&(nd_stats->extent), &nd_box)) ||
-      (op == OVERABOVE_OP && nd_box_below(&(nd_stats->extent), &nd_box)) ||
+      (oper == BELOW_OP && nd_box_overabove(&(nd_stats->extent), &nd_box)) ||
+      (oper == OVERBELOW_OP && nd_box_above(&(nd_stats->extent), &nd_box)) ||
+      (oper == ABOVE_OP && nd_box_overbelow(&(nd_stats->extent), &nd_box)) ||
+      (oper == OVERABOVE_OP && nd_box_below(&(nd_stats->extent), &nd_box)) ||
 
-      (op == FRONT_OP && nd_box_overback(&(nd_stats->extent), &nd_box)) ||
-      (op == OVERFRONT_OP && nd_box_back(&(nd_stats->extent), &nd_box)) ||
-      (op == BACK_OP && nd_box_overfront(&(nd_stats->extent), &nd_box)) ||
-      (op == OVERBACK_OP && nd_box_front(&(nd_stats->extent), &nd_box)))
+      (oper == FRONT_OP && nd_box_overback(&(nd_stats->extent), &nd_box)) ||
+      (oper == OVERFRONT_OP && nd_box_back(&(nd_stats->extent), &nd_box)) ||
+      (oper == BACK_OP && nd_box_overfront(&(nd_stats->extent), &nd_box)) ||
+      (oper == OVERBACK_OP && nd_box_front(&(nd_stats->extent), &nd_box)))
       return 0.0;
   }
 
-  /* Full histogram extent op box is true? */
+  /* Full histogram extent oper box is true? */
   if (bboxop)
   {
      if(nd_box_contains(&nd_box, &(nd_stats->extent), ndims))
@@ -636,20 +563,20 @@ geo_sel(VariableStatData *vardata, const STBOX *box, CachedOp op)
   }
   else
   {
-    if ((op == LEFT_OP && nd_box_left(&(nd_stats->extent), &nd_box)) ||
-      (op == OVERLEFT_OP && nd_box_overleft(&(nd_stats->extent), &nd_box)) ||
-      (op == RIGHT_OP && nd_box_right(&(nd_stats->extent), &nd_box)) ||
-      (op == OVERRIGHT_OP && nd_box_overright(&(nd_stats->extent), &nd_box)) ||
+    if ((oper == LEFT_OP && nd_box_left(&(nd_stats->extent), &nd_box)) ||
+      (oper == OVERLEFT_OP && nd_box_overleft(&(nd_stats->extent), &nd_box)) ||
+      (oper == RIGHT_OP && nd_box_right(&(nd_stats->extent), &nd_box)) ||
+      (oper == OVERRIGHT_OP && nd_box_overright(&(nd_stats->extent), &nd_box)) ||
 
-      (op == BELOW_OP && nd_box_below(&(nd_stats->extent), &nd_box)) ||
-      (op == OVERBELOW_OP && nd_box_overbelow(&(nd_stats->extent), &nd_box)) ||
-      (op == ABOVE_OP && nd_box_above(&(nd_stats->extent), &nd_box)) ||
-      (op == OVERABOVE_OP && nd_box_overabove(&(nd_stats->extent), &nd_box)) ||
+      (oper == BELOW_OP && nd_box_below(&(nd_stats->extent), &nd_box)) ||
+      (oper == OVERBELOW_OP && nd_box_overbelow(&(nd_stats->extent), &nd_box)) ||
+      (oper == ABOVE_OP && nd_box_above(&(nd_stats->extent), &nd_box)) ||
+      (oper == OVERABOVE_OP && nd_box_overabove(&(nd_stats->extent), &nd_box)) ||
 
-      (op == FRONT_OP && nd_box_front(&(nd_stats->extent), &nd_box)) ||
-      (op == OVERFRONT_OP && nd_box_overfront(&(nd_stats->extent), &nd_box)) ||
-      (op == BACK_OP && nd_box_back(&(nd_stats->extent), &nd_box)) ||
-      (op == OVERBACK_OP && nd_box_overback(&(nd_stats->extent), &nd_box)))
+      (oper == FRONT_OP && nd_box_front(&(nd_stats->extent), &nd_box)) ||
+      (oper == OVERFRONT_OP && nd_box_overfront(&(nd_stats->extent), &nd_box)) ||
+      (oper == BACK_OP && nd_box_back(&(nd_stats->extent), &nd_box)) ||
+      (oper == OVERBACK_OP && nd_box_overback(&(nd_stats->extent), &nd_box)))
       return 1.0;
   }
 
@@ -688,29 +615,29 @@ geo_sel(VariableStatData *vardata, const STBOX *box, CachedOp op)
       at[d] = search_ibox.min[d];
     }
     /* Restrict the cells according to the position operator */
-    if (op == LEFT_OP)
+    if (oper == LEFT_OP)
       search_ibox.max[X_DIM] = nd_ibox.min[X_DIM];
-    else if (op == OVERLEFT_OP)
+    else if (oper == OVERLEFT_OP)
       search_ibox.max[X_DIM] = nd_ibox.max[X_DIM];
-    else if (op == RIGHT_OP)
+    else if (oper == RIGHT_OP)
       search_ibox.min[X_DIM] = nd_ibox.max[X_DIM];
-    else if (op == OVERRIGHT_OP)
+    else if (oper == OVERRIGHT_OP)
       search_ibox.min[X_DIM] = nd_ibox.min[X_DIM];
-    else if (op == BELOW_OP)
+    else if (oper == BELOW_OP)
       search_ibox.max[Y_DIM] = nd_ibox.min[Y_DIM];
-    else if (op == OVERBELOW_OP)
+    else if (oper == OVERBELOW_OP)
       search_ibox.max[Y_DIM] = nd_ibox.max[Y_DIM];
-    else if (op == ABOVE_OP)
+    else if (oper == ABOVE_OP)
       search_ibox.min[Y_DIM] = nd_ibox.max[Y_DIM];
-    else if (op == OVERABOVE_OP)
+    else if (oper == OVERABOVE_OP)
       search_ibox.min[Y_DIM] = nd_ibox.min[Y_DIM];
-    else if (op == FRONT_OP)
+    else if (oper == FRONT_OP)
       search_ibox.max[Z_DIM] = nd_ibox.min[Z_DIM];
-    else if (op == OVERFRONT_OP)
+    else if (oper == OVERFRONT_OP)
       search_ibox.max[Z_DIM] = nd_ibox.max[Z_DIM];
-    else if (op == BACK_OP)
+    else if (oper == BACK_OP)
       search_ibox.min[Z_DIM] = nd_ibox.max[Z_DIM];
-    else if (op == OVERBACK_OP)
+    else if (oper == OVERBACK_OP)
       search_ibox.min[Z_DIM] = nd_ibox.min[Z_DIM];
   }
 
@@ -736,7 +663,7 @@ geo_sel(VariableStatData *vardata, const STBOX *box, CachedOp op)
     if (bboxop)
       ratio = (float4) (nd_box_ratio_overlaps(&nd_box, &nd_cell, ndims));
     else
-      ratio = (float4) (nd_box_ratio_position(&nd_box, &nd_cell, op));
+      ratio = (float4) (nd_box_ratio_position(&nd_box, &nd_cell, oper));
     cell_count = nd_stats->value[nd_stats_value_index(nd_stats, at)];
 
     /* Add the pro-rated count for this cell to the overall total */
@@ -754,193 +681,13 @@ geo_sel(VariableStatData *vardata, const STBOX *box, CachedOp op)
 }
 
 /*****************************************************************************
- * Restriction selectivity
- *****************************************************************************/
-
-/**
- * Return a default restriction selectivity estimate for a given operator,
- * when we don't have statistics or cannot use them for some reason.
- */
-static float8
-tpoint_sel_default(CachedOp oper)
-{
-  switch (oper)
-  {
-    case OVERLAPS_OP:
-      return 0.005;
-
-    case CONTAINS_OP:
-    case CONTAINED_OP:
-      return 0.002;
-
-    case SAME_OP:
-      return 0.001;
-
-    case LEFT_OP:
-    case RIGHT_OP:
-    case OVERLEFT_OP:
-    case OVERRIGHT_OP:
-    case ABOVE_OP:
-    case BELOW_OP:
-    case OVERABOVE_OP:
-    case OVERBELOW_OP:
-    case FRONT_OP:
-    case BACK_OP:
-    case OVERFRONT_OP:
-    case OVERBACK_OP:
-    case AFTER_OP:
-    case BEFORE_OP:
-    case OVERAFTER_OP:
-    case OVERBEFORE_OP:
-      /* these are similar to regular scalar inequalities */
-      return DEFAULT_INEQ_SEL;
-
-    default:
-      /* all operators should be handled above, but just in case */
-      return 0.001;
-  }
-}
-
-/**
- * Get enumeration value associated to the operator according to the family
- */
-static bool
-tpoint_cachedop_family(Oid operid, CachedOp *cachedOp, TemporalFamily tempfamily)
-{
-#if NPOINT
-  assert(tempfamily == TPOINTTYPE || tempfamily == TNPOINTTYPE);
-  if (tempfamily == TPOINTTYPE)
-    return tpoint_cachedop(operid, cachedOp);
-  else /* tempfamily == TNPOINTTYPE */
-    return tnpoint_cachedop(operid, cachedOp);
-#else
-  assert(tempfamily == TPOINTTYPE);
-  return tpoint_cachedop(operid, cachedOp);
-#endif /* NPOINT */
-}
-
-/**
- * Estimate the restriction selectivity of the operators for temporal points
- * (internal function)
- */
-float8
-tpoint_sel(PlannerInfo *root, Oid operid, List *args, int varRelid,
-  TemporalFamily tempfamily)
-{
-  VariableStatData vardata;
-  Node *other;
-  bool varonleft;
-  Selectivity selec;
-  STBOX box;
-  Period period;
-
-  /* Get enumeration value associated to the operator */
-  CachedOp cachedOp;
-  if (! tpoint_cachedop_family(operid, &cachedOp, tempfamily))
-    /* In the case of unknown operator */
-    return DEFAULT_TEMP_SEL;
-
-  /*
-   * If expression is not (variable op something) or (something op
-   * variable), then punt and return a default estimate.
-   */
-  if (! get_restriction_variable(root, args, varRelid, &vardata, &other,
-      &varonleft))
-    return tpoint_sel_default(cachedOp);
-
-  /*
-   * Can't do anything useful if the something is not a constant, either.
-   */
-  if (! IsA(other, Const))
-  {
-    ReleaseVariableStats(vardata);
-    return tpoint_sel_default(cachedOp);
-  }
-
-  /*
-   * All the period operators are strict, so we can cope with a NULL constant
-   * right away.
-   */
-  if (((Const *) other)->constisnull)
-  {
-    ReleaseVariableStats(vardata);
-    return 0.0;
-  }
-
-  /*
-   * If var is on the right, commute the operator, so that we can assume the
-   * var is on the left in what follows.
-   */
-  if (! varonleft)
-  {
-    /* we have other Op var, commute to make var Op other */
-    operid = get_commutator(operid);
-    if (! operid)
-    {
-      /* Use default selectivity (should we raise an error instead?) */
-      ReleaseVariableStats(vardata);
-      return tpoint_sel_default(cachedOp);
-    }
-  }
-
-  /*
-   * Transform the constant into an STBOX
-   */
-  if (! tpoint_const_stbox(other, &box))
-    /* In the case of unknown constant */
-    return tpoint_sel_default(cachedOp);
-
-  assert(MOBDB_FLAGS_GET_X(box.flags) || MOBDB_FLAGS_GET_T(box.flags));
-
-  /* Enable the multiplication of the selectivity of the spatial and time
-   * dimensions since either may be missing */
-  selec = 1.0;
-
-  /*
-   * Estimate selectivity for the spatial dimension
-   */
-  if (MOBDB_FLAGS_GET_X(box.flags))
-  {
-    /* PostGIS does not provide selectivity for the traditional
-     * comparisons <, <=, >, >= */
-    if (cachedOp == LT_OP || cachedOp == LE_OP || cachedOp == GT_OP ||
-      cachedOp == GE_OP)
-      selec *= tpoint_sel_default(cachedOp);
-    else
-      selec *= geo_sel(&vardata, &box, cachedOp);
-  }
-  /*
-   * Estimate selectivity for the time dimension
-   */
-  if (MOBDB_FLAGS_GET_T(box.flags))
-  {
-    /* Transform the STBOX into a Period */
-    memcpy(&period, &box.period, sizeof(Span));
-
-    /* Compute the selectivity */
-    selec *= temporal_sel_period(&vardata, &period, cachedOp);
-  }
-
-  ReleaseVariableStats(vardata);
-  CLAMP_PROBABILITY(selec);
-  return selec;
-}
-
-PG_FUNCTION_INFO_V1(Tpoint_sel);
-/**
- * Estimate the restriction selectivity of the operators for temporal points
- */
-PGDLLEXPORT Datum
-Tpoint_sel(PG_FUNCTION_ARGS)
-{
-  return temporal_sel_ext(fcinfo, TPOINTTYPE);
-}
-
-/*****************************************************************************
  * Join selectivity
  *****************************************************************************/
 
-static ND_STATS *
+/**
+ * @brief Get the statistics from the tuple
+ */
+ND_STATS *
 pg_nd_stats_from_tuple(HeapTuple stats_tuple, int mode)
 {
   int stats_kind = STATISTIC_KIND_ND;
@@ -971,11 +718,11 @@ pg_nd_stats_from_tuple(HeapTuple stats_tuple, int mode)
 * Pull the stats object from the PgSQL system catalogs. Used
 * by the selectivity functions and the debugging functions.
 */
-static ND_STATS *
+ND_STATS *
 pg_get_nd_stats(const Oid tableid, AttrNumber att_num, int mode, bool only_parent)
 {
   HeapTuple stats_tuple = NULL;
-  ND_STATS *nd_stats;
+  ND_STATS *nd_stats = NULL;
 
   /* First pull the stats tuple for the whole tree */
   if ( ! only_parent )
@@ -983,56 +730,13 @@ pg_get_nd_stats(const Oid tableid, AttrNumber att_num, int mode, bool only_paren
   /* Fall-back to main table stats only, if not found for whole tree or explicitly ignored */
   if ( only_parent || ! stats_tuple )
     stats_tuple = SearchSysCache3(STATRELATTINH, ObjectIdGetDatum(tableid), Int16GetDatum(att_num), BoolGetDatum(false));
-  if ( ! stats_tuple )
-    return NULL;
-
-  nd_stats = pg_nd_stats_from_tuple(stats_tuple, mode);
-  ReleaseSysCache(stats_tuple);
-  return nd_stats;
-}
-
-/**
- * Return a default join selectivity estimate for a given operator,
- * when we don't have statistics or cannot use them for some reason.
- */
-static float8
-tpoint_joinsel_default(CachedOp oper)
-{
-  switch (oper)
+  if ( stats_tuple )
   {
-    case OVERLAPS_OP:
-      return 0.005;
-
-    case CONTAINS_OP:
-    case CONTAINED_OP:
-      return 0.002;
-
-    case SAME_OP:
-      return 0.001;
-
-    case LEFT_OP:
-    case RIGHT_OP:
-    case OVERLEFT_OP:
-    case OVERRIGHT_OP:
-    case ABOVE_OP:
-    case BELOW_OP:
-    case OVERABOVE_OP:
-    case OVERBELOW_OP:
-    case FRONT_OP:
-    case BACK_OP:
-    case OVERFRONT_OP:
-    case OVERBACK_OP:
-    case AFTER_OP:
-    case BEFORE_OP:
-    case OVERAFTER_OP:
-    case OVERBEFORE_OP:
-      /* these are similar to regular scalar inequalities */
-      return DEFAULT_INEQ_SEL;
-
-    default:
-      /* all operators should be handled above, but just in case */
-      return 0.001;
+    nd_stats = pg_nd_stats_from_tuple(stats_tuple, mode);
+    ReleaseSysCache(stats_tuple);
   }
+
+  return nd_stats;
 }
 
 /**
@@ -1048,7 +752,7 @@ tpoint_joinsel_default(CachedOp oper)
 * proportion of the cells in the other histogram the cell
 * overlaps: val += val1 * ( val2 * overlap_ratio )
 */
-static float8
+float8
 geo_joinsel(const ND_STATS *s1, const ND_STATS *s2)
 {
   int ncells1, ncells2;
@@ -1097,8 +801,10 @@ geo_joinsel(const ND_STATS *s1, const ND_STATS *s2)
 
   /* Q: What's the largest possible join size these relations can create? */
   /* A: The product of the # of non-null rows in each relation. */
-  ntuples_not_null1 = s1->table_features * (s1->not_null_features / s1->sample_features);
-  ntuples_not_null2 = s2->table_features * (s2->not_null_features / s2->sample_features);
+  ntuples_not_null1 = s1->table_features *
+    (s1->not_null_features / s1->sample_features);
+  ntuples_not_null2 = s2->table_features *
+    (s2->not_null_features / s2->sample_features);
   ntuples_max = ntuples_not_null1 * ntuples_not_null2;
 
   /* Get the ndims as ints */
@@ -1149,8 +855,8 @@ geo_joinsel(const ND_STATS *s1, const ND_STATS *s2)
     nd_box_init(&nd_cell1);
     for ( d = 0; d < ndims1; d++ )
     {
-      nd_cell1.min[d] = min1[d] + (at1[d]+0) * cellsize1[d];
-      nd_cell1.max[d] = min1[d] + (at1[d]+1) * cellsize1[d];
+      nd_cell1.min[d] = (float4) (min1[d] + (at1[d]+0) * cellsize1[d]);
+      nd_cell1.max[d] = (float4) (min1[d] + (at1[d]+1) * cellsize1[d]);
     }
 
     /* Find the cells of s2 that cell1 overlaps.. */
@@ -1176,8 +882,8 @@ geo_joinsel(const ND_STATS *s1, const ND_STATS *s2)
       nd_box_init(&nd_cell2);
       for ( d = 0; d < ndims2; d++ )
       {
-        nd_cell2.min[d] = min2[d] + (at2[d]+0) * cellsize2[d];
-        nd_cell2.max[d] = min2[d] + (at2[d]+1) * cellsize2[d];
+        nd_cell2.min[d] = (float4) (min2[d] + (at2[d]+0) * cellsize2[d]);
+        nd_cell2.max[d] = (float4) (min2[d] + (at2[d]+1) * cellsize2[d]);
       }
 
       /* Calculate overlap ratio of the cells */
@@ -1226,145 +932,4 @@ geo_joinsel(const ND_STATS *s1, const ND_STATS *s2)
 
   return selectivity;
 }
-
-/**
- * Depending on the operator and the arguments, determine wheter the space,
- * the time, or both components are taken into account for computing the
- * join selectivity
- */
-static bool
-tpoint_joinsel_components(CachedOp cachedOp, mobdbType oprleft,
-  mobdbType oprright, bool *space, bool *time)
-{
-  /* Get the argument which may not be a temporal point */
-  mobdbType arg = tspatial_type(oprleft) ? oprright : oprleft;
-
-  /* Determine the components */
-  if (tspatial_basetype(arg) ||
-    cachedOp == LEFT_OP || cachedOp == OVERLEFT_OP ||
-    cachedOp == RIGHT_OP || cachedOp == OVERRIGHT_OP ||
-    cachedOp == BELOW_OP || cachedOp == OVERBELOW_OP ||
-    cachedOp == ABOVE_OP || cachedOp == OVERABOVE_OP ||
-    cachedOp == FRONT_OP || cachedOp == OVERFRONT_OP ||
-    cachedOp == BACK_OP || cachedOp == OVERBACK_OP)
-  {
-    *space = true;
-    *time = false;
-  }
-  else if (time_type(arg) ||
-    cachedOp == BEFORE_OP || cachedOp == OVERBEFORE_OP ||
-    cachedOp == AFTER_OP || cachedOp == OVERAFTER_OP)
-  {
-    *space = false;
-    *time = true;
-  }
-  else if (tspatial_type(arg) && (cachedOp == OVERLAPS_OP ||
-    cachedOp == CONTAINS_OP || cachedOp == CONTAINED_OP ||
-    cachedOp == SAME_OP || cachedOp == ADJACENT_OP))
-  {
-    *space = true;
-    *time = true;
-  }
-  else
-  {
-    /* By default only the time component is taken into account */
-    *space = false;
-    *time = true;
-  }
-  return true;
-}
-
-/**
- * Estimate the restriction selectivity of the operators for temporal (network)
- * points (internal function)
- */
-float8
-tpoint_joinsel(PlannerInfo *root, Oid operid, List *args,
-  JoinType jointype, SpecialJoinInfo *sjinfo, int mode,
-  TemporalFamily tempfamily)
-{
-  Node *arg1 = (Node *) linitial(args);
-  Node *arg2 = (Node *) lsecond(args);
-  Var *var1 = (Var *) arg1;
-  Var *var2 = (Var *) arg2;
-
-  /* We only do column joins right now, no functional joins */
-  /* TODO: handle t1 <op> expandX(t2) */
-  if (!IsA(arg1, Var) || !IsA(arg2, Var))
-    return DEFAULT_TEMP_JOINSEL;
-
-  /* Get enumeration value associated to the operator */
-  CachedOp cachedOp;
-  if (! tpoint_cachedop_family(operid, &cachedOp, tempfamily))
-    /* In the case of unknown operator */
-    return DEFAULT_TEMP_SEL;
-
-  /*
-   * Determine whether the space and/or the time components are
-   * taken into account for the selectivity estimation
-   */
-  mobdbType oprleft = oid_type(var1->vartype);
-  mobdbType oprright = oid_type(var2->vartype);
-  bool space, time;
-  if (! tpoint_joinsel_components(cachedOp, oprleft, oprright,
-    &space, &time))
-    /* In the case of unknown arguments */
-    return tpoint_joinsel_default(cachedOp);
-
-  float8 selec = 1.0;
-  if (space)
-  {
-    /* What are the Oids of our tables/relations? */
-    Oid relid1 = rt_fetch(var1->varno, root->parse->rtable)->relid;
-    Oid relid2 = rt_fetch(var2->varno, root->parse->rtable)->relid;
-
-    /* Pull the stats from the stats system. */
-    ND_STATS *stats1 = pg_get_nd_stats(relid1, var1->varattno, mode, false);
-    ND_STATS *stats2 = pg_get_nd_stats(relid2, var2->varattno, mode, false);
-
-    /* If we can't get stats, we have to stop here! */
-    if (! stats1 || ! stats2)
-      selec *= tpoint_joinsel_default(cachedOp);
-    else
-      selec *= geo_joinsel(stats1, stats2);
-    if (stats1)
-      pfree(stats1);
-    if (stats2)
-      pfree(stats2);
-  }
-  if (time)
-  {
-    /*
-     * Return default selectivity for the time dimension for the following cases
-     * - There is no ~= operator for time types
-     * - The support functions for the ever spatial relationships add a
-     *   bounding box test with the && operator, but we need to exclude
-     *   the dwithin operator since it takes 3 arguments and thus the
-     *   PostgreSQL function get_join_variables cannot be invoked.
-     */
-    if (cachedOp == SAME_OP ||
-      (cachedOp == OVERLAPS_OP && list_length(args) != 2))
-      selec *= span_joinsel_default(cachedOp);
-    else
-      /* Estimate join selectivity */
-      selec *= span_joinsel(root, cachedOp, args, jointype, sjinfo);
-  }
-  return selec;
-}
-
-PG_FUNCTION_INFO_V1(Tpoint_joinsel);
-/**
- * Estimate the join selectivity value of the operators for temporal points.
- *
- * The selectivity is the ratio of the number of rows we think will be
- * returned divided the maximum number of rows the join could possibly
- * return (the full combinatoric join), that is,
- *   joinsel = estimated_nrows / (totalrows1 * totalrows2)
- */
-PGDLLEXPORT Datum
-Tpoint_joinsel(PG_FUNCTION_ARGS)
-{
-  return temporal_joinsel_ext(fcinfo, TPOINTTYPE);
-}
-
 /*****************************************************************************/

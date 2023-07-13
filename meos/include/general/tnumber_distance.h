@@ -1,12 +1,12 @@
 /*****************************************************************************
  *
  * This MobilityDB code is provided under The PostgreSQL License.
- * Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+ * Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
  * contributors
  *
  * MobilityDB includes portions of PostGIS version 3 source code released
  * under the GNU General Public License (GPLv2 or later).
- * Copyright (c) 2001-2022, PostGIS contributors
+ * Copyright (c) 2001-2023, PostGIS contributors
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written
@@ -23,7 +23,7 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
  * AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
- * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  *****************************************************************************/
 
@@ -34,8 +34,8 @@
 #ifndef __TNUMBER_DISTANCE_H__
 #define __TNUMBER_DISTANCE_H__
 
-/* MobilityDB */
-#include "general/temporal_catalog.h"
+/* MEOS */
+#include "general/meos_catalog.h"
 #include "general/temporal.h"
 
 /*****************************************************************************/
@@ -43,19 +43,19 @@
 /* Distance functions */
 
 extern Temporal *distance_tnumber_number(const Temporal *temp, Datum value,
-  mobdbType valuetype, mobdbType restype);
+  meosType valuetype, meosType restype);
 extern Temporal *distance_tnumber_tnumber1(const Temporal *temp1,
-  const Temporal *temp2, mobdbType restype);
+  const Temporal *temp2, meosType restype);
 
-extern Datum number_distance(Datum l, Datum r, mobdbType typel,
-  mobdbType typer);
+extern Datum double_distance(Datum l, Datum r);
+extern Datum number_distance(Datum l, Datum r, meosType typel, meosType typer);
 
 /* Nearest approach distance */
 
 extern double nad_tnumber_number(const Temporal *temp, Datum value,
-  mobdbType basetype);
-extern double nad_tbox_tbox(const TBOX *box1, const TBOX *box2);
-extern double nad_tnumber_tbox(const Temporal *temp, const TBOX *box);
+  meosType basetype);
+extern double nad_tbox_tbox(const TBox *box1, const TBox *box2);
+extern double nad_tnumber_tbox(const Temporal *temp, const TBox *box);
 
 // NAI and shortestline functions are not yet implemented
 // Are they useful ?

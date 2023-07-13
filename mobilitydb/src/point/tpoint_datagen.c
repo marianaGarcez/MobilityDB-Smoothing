@@ -1,12 +1,12 @@
 /*****************************************************************************
  *
  * This MobilityDB code is provided under The PostgreSQL License.
- * Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+ * Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
  * contributors
  *
  * MobilityDB includes portions of PostGIS version 3 source code released
  * under the GNU General Public License (GPLv2 or later).
- * Copyright (c) 2001-2022, PostGIS contributors
+ * Copyright (c) 2001-2023, PostGIS contributors
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written
@@ -23,11 +23,12 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
  * AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
- * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  *****************************************************************************/
 
 /**
+ * @file
  * @brief Data generator for MobilityDB.
  *
  * These functions are used in the BerlinMOD data generator
@@ -49,13 +50,13 @@
 /* MEOS */
 #include <meos.h>
 #include <meos_internal.h>
-#include "general/temporal_util.h"
+#include "general/type_util.h"
 #include "point/tpoint.h"
 #include "point/tpoint_spatialfuncs.h"
 /* MobilityDB */
+#include "pg_general/meos_catalog.h"
 #include "pg_general/temporal.h"
-#include "pg_general/temporal_catalog.h"
-#include "pg_general/temporal_util.h"
+#include "pg_general/type_util.h"
 
 /*****************************************************************************/
 
@@ -66,7 +67,7 @@ const gsl_rng_type *_rng_type;
 gsl_rng *_rng;
 
 /**
- * Initialize the Gnu Scientific Library
+ * @brief Initialize the Gnu Scientific Library
  */
 static void
 initialize_gsl()
@@ -79,14 +80,13 @@ initialize_gsl()
 }
 
 /**
- * Return the angle in degrees between 3 points
+ * @brief Return the angle in degrees between 3 points
  */
 static double
 pt_angle(POINT2D p1, POINT2D p2, POINT2D p3)
 {
-  double az1, az2, result;
-  if (! azimuth_pt_pt(&p1, &p2, &az1) ||
-    ! azimuth_pt_pt(&p3, &p2, &az2))
+  double result, az1 = 0, az2 = 0; /* make compilier quiet */
+  if (! azimuth_pt_pt(&p1, &p2, &az1) ||  ! azimuth_pt_pt(&p3, &p2, &az2))
     ereport(ERROR, (errcode(ERRCODE_INTERNAL_ERROR),
       errmsg("Cannot compute angle betwen equal points")));
   result = az2 - az1;
@@ -105,7 +105,7 @@ pt_angle(POINT2D p1, POINT2D p2, POINT2D p3)
   } while (0)
 
 /**
- * Create a trip using the BerlinMOD data generator (internal function)
+ * @brief Create a trip using the BerlinMOD data generator
  */
 static TSequence *
 create_trip_internal(LWLINE **lines, const double *maxSpeeds, const int *categories,
@@ -427,7 +427,7 @@ create_trip_internal(LWLINE **lines, const double *maxSpeeds, const int *categor
       }
     }
   }
-  TSequence *result = tsequence_make((const TInstant **) instants, l, l,
+  TSequence *result = tsequence_make((const TInstant **) instants, l,
     true, true, LINEAR, NORMALIZE);
 
   /* Display the statistics of the trip */
@@ -462,9 +462,10 @@ create_trip_internal(LWLINE **lines, const double *maxSpeeds, const int *categor
   return result;
 }
 
+PGDLLEXPORT Datum create_trip(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(create_trip);
 /**
- * Create a trip using the BerlinMOD data generator.
+ * @brief Create a trip using the BerlinMOD data generator.
  *
  * @note This function is equivalent to the PL/pgSQL function
  * CreateTrip in the BerlinMOD generator but is written in C

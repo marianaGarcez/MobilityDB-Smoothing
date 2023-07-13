@@ -1,12 +1,12 @@
 /*****************************************************************************
  *
  * This MobilityDB code is provided under The PostgreSQL License.
- * Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+ * Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
  * contributors
  *
  * MobilityDB includes portions of PostGIS version 3 source code released
  * under the GNU General Public License (GPLv2 or later).
- * Copyright (c) 2001-2022, PostGIS contributors
+ * Copyright (c) 2001-2023, PostGIS contributors
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written
@@ -23,7 +23,7 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
  * AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
- * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  *****************************************************************************/
 
@@ -256,13 +256,13 @@ CREATE OPERATOR <= (
   PROCEDURE = npoint_le,
   LEFTARG = npoint, RIGHTARG = npoint,
   COMMUTATOR = >=, NEGATOR = >,
-  RESTRICT = @SCALAR_LE@, JOIN = @JOIN_LE@
+  RESTRICT = scalarlesel, JOIN = scalarlejoinsel
 );
 CREATE OPERATOR >= (
   PROCEDURE = npoint_ge,
   LEFTARG = npoint, RIGHTARG = npoint,
   COMMUTATOR = <=, NEGATOR = <,
-  RESTRICT = @SCALAR_GE@, JOIN = @JOIN_GE@
+  RESTRICT = scalargesel, JOIN = scalargejoinsel
 );
 CREATE OPERATOR > (
   PROCEDURE = npoint_gt,
@@ -271,7 +271,7 @@ CREATE OPERATOR > (
   RESTRICT = scalargtsel, JOIN = scalargtjoinsel
 );
 
-CREATE OPERATOR CLASS npoint_ops
+CREATE OPERATOR CLASS npoint_btree_ops
   DEFAULT FOR TYPE npoint USING btree AS
   OPERATOR  1 < ,
   OPERATOR  2 <= ,
@@ -333,13 +333,13 @@ CREATE OPERATOR <= (
   PROCEDURE = nsegment_le,
   LEFTARG = nsegment, RIGHTARG = nsegment,
   COMMUTATOR = >=, NEGATOR = >,
-  RESTRICT = @SCALAR_LE@, JOIN = @JOIN_LE@
+  RESTRICT = scalarlesel, JOIN = scalarlejoinsel
 );
 CREATE OPERATOR >= (
   PROCEDURE = nsegment_ge,
   LEFTARG = nsegment, RIGHTARG = nsegment,
   COMMUTATOR = <=, NEGATOR = <,
-  RESTRICT = @SCALAR_GE@, JOIN = @JOIN_GE@
+  RESTRICT = scalargesel, JOIN = scalargejoinsel
 );
 CREATE OPERATOR > (
   PROCEDURE = nsegment_gt,
@@ -348,7 +348,7 @@ CREATE OPERATOR > (
   RESTRICT = scalargtsel, JOIN = scalargtjoinsel
 );
 
-CREATE OPERATOR CLASS nsegment_ops
+CREATE OPERATOR CLASS nsegment_btree_ops
   DEFAULT FOR TYPE nsegment USING btree AS
   OPERATOR  1 < ,
   OPERATOR  2 <= ,

@@ -167,23 +167,12 @@ int main(void){
       trips[i]->count, tpoint_length((Temporal *) trips[i]));
   }
 
-   /* ****************************************************************************
-    * Call Outlier detection Methods 
-    **************************************************************************** */
-    TSequence *ftrips[MAX_TRIPS];
-    int max_speed = 500;
-    int include_loops = 0;
-    int speed = 5;
-    int max_loop = 6;
-    float max_ratio= 0.25;
-    
-    printf("call outlier detection\n");
-    //tsequence_filter_heuristic(trips,3,1,8,max_speed);
-    printf("return outlier detection\n");
-  
-    /* ****************************************************************************
-    * Outlier detection Methods Return
-    *************************************************************************** */
+  printf("get first trip\n");
+  /* Detect outliers */
+  Temporal *trip = (Temporal *)trips[0];
+  printf("get speed trip\n");
+  Temporal *speed = tpoint_speed(trip);
+  printf("get outlier trip\n");
 
   /* Free memory */
   for (i = 0; i < numships; i++)

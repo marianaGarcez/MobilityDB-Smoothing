@@ -1,12 +1,12 @@
 /*****************************************************************************
  *
  * This MobilityDB code is provided under The PostgreSQL License.
- * Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+ * Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
  * contributors
  *
  * MobilityDB includes portions of PostGIS version 3 source code released
  * under the GNU General Public License (GPLv2 or later).
- * Copyright (c) 2001-2022, PostGIS contributors
+ * Copyright (c) 2001-2023, PostGIS contributors
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written
@@ -23,7 +23,7 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
  * AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
- * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  *****************************************************************************/
 
@@ -144,12 +144,12 @@ CREATE FUNCTION round(tgeogpoint, int DEFAULT 0)
 
 CREATE FUNCTION trajectory(tgeompoint)
   RETURNS geometry
-  AS 'MODULE_PATHNAME', 'Tpoint_get_trajectory'
+  AS 'MODULE_PATHNAME', 'Tpoint_trajectory'
   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
 
 CREATE FUNCTION trajectory(tgeogpoint)
   RETURNS geography
-  AS 'MODULE_PATHNAME', 'Tpoint_get_trajectory'
+  AS 'MODULE_PATHNAME', 'Tpoint_trajectory'
   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
 
 /*****************************************************************************/
@@ -172,6 +172,11 @@ CREATE FUNCTION cumulativeLength(tgeogpoint)
   AS 'MODULE_PATHNAME', 'Tpoint_cumulative_length'
   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
 
+CREATE FUNCTION convexHull(tgeompoint)
+  RETURNS geometry
+  AS 'MODULE_PATHNAME', 'Tpoint_convex_hull'
+  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+
 CREATE FUNCTION speed(tgeompoint)
   RETURNS tfloat
   AS 'MODULE_PATHNAME', 'Tpoint_speed'
@@ -186,6 +191,15 @@ CREATE FUNCTION twcentroid(tgeompoint)
   AS 'MODULE_PATHNAME', 'Tpoint_twcentroid'
   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
 
+CREATE FUNCTION direction(tgeompoint)
+  RETURNS float
+  AS 'MODULE_PATHNAME', 'Tpoint_direction'
+  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+CREATE FUNCTION direction(tgeogpoint)
+  RETURNS float
+  AS 'MODULE_PATHNAME', 'Tpoint_direction'
+  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+
 CREATE FUNCTION azimuth(tgeompoint)
   RETURNS tfloat
   AS 'MODULE_PATHNAME', 'Tpoint_azimuth'
@@ -193,6 +207,15 @@ CREATE FUNCTION azimuth(tgeompoint)
 CREATE FUNCTION azimuth(tgeogpoint)
   RETURNS tfloat
   AS 'MODULE_PATHNAME', 'Tpoint_azimuth'
+  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+
+CREATE FUNCTION angularDifference(tgeompoint)
+  RETURNS tfloat
+  AS 'MODULE_PATHNAME', 'Tpoint_angular_difference'
+  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+CREATE FUNCTION angularDifference(tgeogpoint)
+  RETURNS tfloat
+  AS 'MODULE_PATHNAME', 'Tpoint_angular_difference'
   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
 
 /*****************************************************************************/
@@ -247,15 +270,27 @@ CREATE FUNCTION makeSimple(tgeompoint)
 
 /*****************************************************************************/
 
-CREATE FUNCTION atGeometry(tgeompoint, geometry)
+-- These functions are not STRICT
+CREATE FUNCTION atGeometry(tgeompoint, geometry, floatspan DEFAULT NULL)
   RETURNS tgeompoint
-  AS 'MODULE_PATHNAME', 'Tpoint_at_geometry'
-  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+  AS 'MODULE_PATHNAME', 'Tpoint_at_geom'
+  LANGUAGE C IMMUTABLE PARALLEL SAFE;
+CREATE FUNCTION atGeometryTime(tgeompoint, geometry, floatspan DEFAULT NULL,
+  tstzspan DEFAULT NULL)
+  RETURNS tgeompoint
+  AS 'MODULE_PATHNAME', 'Tpoint_at_geom_time'
+  LANGUAGE C IMMUTABLE PARALLEL SAFE;
 
-CREATE FUNCTION minusGeometry(tgeompoint, geometry)
+-- These functions are not STRICT
+CREATE FUNCTION minusGeometry(tgeompoint, geometry, floatspan DEFAULT NULL)
   RETURNS tgeompoint
-  AS 'MODULE_PATHNAME', 'Tpoint_minus_geometry'
-  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+  AS 'MODULE_PATHNAME', 'Tpoint_minus_geom'
+  LANGUAGE C IMMUTABLE PARALLEL SAFE;
+CREATE FUNCTION minusGeometryTime(tgeompoint, geometry, floatspan DEFAULT NULL,
+  tstzspan DEFAULT NULL)
+  RETURNS tgeompoint
+  AS 'MODULE_PATHNAME', 'Tpoint_minus_geom_time'
+  LANGUAGE C IMMUTABLE PARALLEL SAFE;
 
 CREATE FUNCTION atStbox(tgeompoint, stbox)
   RETURNS tgeompoint

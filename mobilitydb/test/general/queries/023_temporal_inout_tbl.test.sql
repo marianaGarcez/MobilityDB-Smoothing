@@ -1,12 +1,12 @@
 -------------------------------------------------------------------------------
 --
 -- This MobilityDB code is provided under The PostgreSQL License.
--- Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+-- Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
 -- contributors
 --
 -- MobilityDB includes portions of PostGIS version 3 source code released
 -- under the GNU General Public License (GPLv2 or later).
--- Copyright (c) 2001-2022, PostGIS contributors
+-- Copyright (c) 2001-2023, PostGIS contributors
 --
 -- Permission to use, copy, modify, and distribute this software and its
 -- documentation for any purpose, without fee, and without a written
@@ -23,7 +23,7 @@
 -- INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
 -- AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
 -- AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
--- PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+-- PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
 --
 -------------------------------------------------------------------------------
 
@@ -32,8 +32,8 @@ SELECT asText(tfloat '0.123456789@2000-01-01', 6);
 SELECT asText(tfloat '{0.123456789@2000-01-01, 1.523456789@2000-01-02, 0.123456789@2000-01-03}', 6);
 SELECT asText(tfloat '[0.123456789@2000-01-01, 1.523456789@2000-01-02, 0.123456789@2000-01-03]', 6);
 SELECT asText(tfloat '{[0.123456789@2000-01-01, 1.523456789@2000-01-02, 0.123456789@2000-01-03],[3.723456789@2000-01-04, 3.723456789@2000-01-05]}', 6);
-SELECT asText(tfloat 'Interp=Stepwise;[0.123456789@2000-01-01, 1.523456789@2000-01-02, 0.123456789@2000-01-03]', 6);
-SELECT asText(tfloat 'Interp=Stepwise;{[0.123456789@2000-01-01, 1.523456789@2000-01-02, 0.123456789@2000-01-03],[3.723456789@2000-01-04, 3.723456789@2000-01-05]}', 6);
+SELECT asText(tfloat 'Interp=Step;[0.123456789@2000-01-01, 1.523456789@2000-01-02, 0.123456789@2000-01-03]', 6);
+SELECT asText(tfloat 'Interp=Step;{[0.123456789@2000-01-01, 1.523456789@2000-01-02, 0.123456789@2000-01-03],[3.723456789@2000-01-04, 3.723456789@2000-01-05]}', 6);
 
 -- Array of temporal values
 SELECT asText('{}'::tfloat[]);
@@ -61,7 +61,7 @@ SELECT ttextFromMFJSON(asMFJSON(ttext '{[AAA@2000-01-01, BBB@2000-01-02], [CCC@2
 
 SELECT COUNT(*) FROM tbl_tbool WHERE temp IS NOT NULL AND tboolFromMFJSON(asMFJSON(temp)) <> temp;
 SELECT COUNT(*) FROM tbl_tint WHERE temp IS NOT NULL AND tintFromMFJSON(asMFJSON(temp)) <> temp;
--- We need to add asewkt to avoid problems due to floating point precision
+-- We need to add asText to avoid problems due to floating point precision
 SELECT COUNT(*) from tbl_tfloat WHERE temp IS NOT NULL AND asText(tfloatFromMFJSON(asMFJSON(temp))) <> asText(temp);
 SELECT COUNT(*) FROM tbl_ttext WHERE temp IS NOT NULL AND ttextFromMFJSON(asMFJSON(temp)) <> temp;
 

@@ -1,12 +1,12 @@
 /*****************************************************************************
  *
  * This MobilityDB code is provided under The PostgreSQL License.
- * Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+ * Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
  * contributors
  *
  * MobilityDB includes portions of PostGIS version 3 source code released
  * under the GNU General Public License (GPLv2 or later).
- * Copyright (c) 2001-2022, PostGIS contributors
+ * Copyright (c) 2001-2023, PostGIS contributors
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written
@@ -23,13 +23,13 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
  * AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
- * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  *****************************************************************************/
 
 /**
- * @brief Temporal mathematical operators (+, -, *, /) and functions (round,
- * degrees).
+ * @brief Mathematical operators (+, -, *, /) and functions (round, degrees, ...)
+ * for temporal numbers.
  */
 
 #ifndef __TEMPORAL_MATHFUNCS_H__
@@ -63,19 +63,16 @@ extern bool tnumber_div_tp_at_timestamp(const TInstant *start1,
   Datum *value, TimestampTz *t);
 
 extern Temporal *arithop_tnumber_number(const Temporal *temp, Datum value,
-  mobdbType basetype, TArithmetic oper,
-  Datum (*func)(Datum, Datum, mobdbType, mobdbType), bool invert);
+  meosType basetype, TArithmetic oper,
+  Datum (*func)(Datum, Datum, meosType, meosType), bool invert);
 extern Temporal *arithop_tnumber_tnumber(const Temporal *temp1,
   const Temporal *temp2, TArithmetic oper,
-  Datum (*func)(Datum, Datum, mobdbType, mobdbType),
+  Datum (*func)(Datum, Datum, meosType, meosType),
   bool (*tpfunc)(const TInstant *, const TInstant *, const TInstant *,
     const TInstant *, Datum *, TimestampTz *));
 
-extern Temporal *tnumber_degrees(const Temporal *temp);
-
-extern TSequence *tnumberseq_derivative(const TSequence *seq);
-extern TSequenceSet *tnumberseqset_derivative(const TSequenceSet *ts);
-extern Temporal *tnumber_derivative(const Temporal *temp);
+extern TSequence *tfloatseq_derivative(const TSequence *seq);
+extern TSequenceSet *tfloatseqset_derivative(const TSequenceSet *ss);
 
 /*****************************************************************************/
 

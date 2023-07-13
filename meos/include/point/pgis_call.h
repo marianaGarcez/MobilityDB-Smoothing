@@ -1,12 +1,12 @@
 /*****************************************************************************
  *
  * This MobilityDB code is provided under The PostgreSQL License.
- * Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+ * Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
  * contributors
  *
  * MobilityDB includes portions of PostGIS version 3 source code released
  * under the GNU General Public License (GPLv2 or later).
- * Copyright (c) 2001-2022, PostGIS contributors
+ * Copyright (c) 2001-2023, PostGIS contributors
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written
@@ -23,7 +23,7 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
  * AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
- * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  *****************************************************************************/
 
@@ -38,14 +38,17 @@
 
 /*****************************************************************************/
 
+/* GEOS */
+#include <geos_c.h>
 /* PostgreSQL */
 #include <postgres.h>
 /* PostGIS */
 #include <liblwgeom.h>
-/* MobilityDB */
-#include "general/temporal.h"
+/* MEOS */
+#include "general/meos_catalog.h"
 #include "general/span.h"
-#include "general/temporal_catalog.h"
+#include "general/temporal.h"
+
 
 /* Functions adapted from lwgeom_box.c */
 
@@ -81,13 +84,17 @@ extern bool gserialized_azimuth(GSERIALIZED *geom1, GSERIALIZED *geom2,
 
 /* Functions adapted from lwgeom_geos.c */
 
-extern bool gserialized_inter_contains(const GSERIALIZED *geom1,
-  const GSERIALIZED *geom2, bool inter);
-extern bool gserialized_touches(const GSERIALIZED *geom1,
-  const GSERIALIZED *geom2);
+extern GEOSGeometry *POSTGIS2GEOS(const GSERIALIZED *pglwgeom);
+extern GSERIALIZED *GEOS2POSTGIS(GEOSGeom geom, char want3d);
+
+extern bool gserialized_spatialrel(const GSERIALIZED *geom1,
+  const GSERIALIZED *geom2, spatialRel rel);
 extern GSERIALIZED *gserialized_intersection(const GSERIALIZED *geom1,
   const GSERIALIZED *geom2);
 extern GSERIALIZED *gserialized_array_union(GSERIALIZED **gsarr, int nelems);
+extern GSERIALIZED *gserialized_convex_hull(const GSERIALIZED *geom);
+extern double gserialized_hausdorffdistance(const GSERIALIZED *geom1,
+  const GSERIALIZED *geom2);
 
 /* Functions adapted from geography_measurement.c */
 
@@ -108,14 +115,14 @@ extern GSERIALIZED *gserialized_geom_from_geog(GSERIALIZED *g_ser);
 /* Functions adapted from lwgeom_functions_analytic.c */
 
 extern GSERIALIZED *gserialized_line_interpolate_point(GSERIALIZED *gser,
-  double distance_fraction, int repeat);
+  double distance_fraction, char repeat);
 extern GSERIALIZED *gserialized_line_substring(GSERIALIZED *geom, double from,
   double to);
 
 /* Functions adapted from lwgeom_lrs.c */
 
 extern LWGEOM *lwgeom_line_interpolate_point(LWGEOM *lwgeom, double fraction,
-  int32_t srid, int repeat);
+  int32_t srid, char repeat);
 extern double gserialized_line_locate_point(GSERIALIZED *geom1,
   GSERIALIZED *geom2);
 

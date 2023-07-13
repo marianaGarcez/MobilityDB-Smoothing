@@ -1,20 +1,23 @@
 #-------------------------------------
-# MobilityDB Main CMake file
+# MobilityDB CMake file
 #-------------------------------------
 
 message(STATUS "-------------------")
 message(STATUS "Building MobilityDB")
 message(STATUS "-------------------")
 
+# Disable code specific to MEOS which is not used in the MobilityDB PostgreSQL
+# extension.
+add_definitions(-DMEOS=0)
+
 # Set the version and name of the library
 set(MOBILITYDB_LIB_VERSION "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}")
 set(MOBILITYDB_LIB_NAME "${CMAKE_PROJECT_NAME}-${MOBILITYDB_LIB_VERSION}")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
-# Set the name of the PostgreSQL extension and of the internal extension used for testing
+# Set the name of the PostgreSQL extension
 string(TOLOWER ${CMAKE_PROJECT_NAME} MOBILITYDB_LOWERCASE_NAME)
 set(MOBILITYDB_EXTENSION_FILE "${MOBILITYDB_LOWERCASE_NAME}--${PROJECT_VERSION}.sql")
-set(MOBILITYDB_TEST_EXTENSION_FILE "${CMAKE_BINARY_DIR}/test_${MOBILITYDB_EXTENSION_FILE}")
 
 # Comment out code used for debugging purposes so it is not concerned by the coverage
 if(CMAKE_BUILD_TYPE MATCHES Debug)
@@ -38,7 +41,7 @@ include_directories(SYSTEM ${POSTGRESQL_INCLUDE_DIR})
 if(WIN32)
   include_directories(SYSTEM ${POSTGRESQL_INCLUDE_DIR}/port/win32)
   if(MSVC)
-      include_directories(SYSTEM ${POSTGRESQL_INCLUDE_DIR}/port/win32_msvc/)
+    include_directories(SYSTEM ${POSTGRESQL_INCLUDE_DIR}/port/win32_msvc/)
   endif()
   link_directories(${POSTGRESQL_LIBRARIES})
   link_libraries(postgres)
@@ -55,9 +58,9 @@ add_definitions(-DPOSTGRESQL_VERSION_NUMBER=${POSTGRESQL_VERSION_NUMBER})
 find_package(POSTGIS REQUIRED)
 
 # PostGIS definitions for PostgreSQL and PostGIS version-dependent code
-math(EXPR POSTGIS_PGSQL_VERSION "${POSTGRESQL_VERSION_MAJOR} * 10 +
-  ${POSTGRESQL_VERSION_MINOR}")
-add_definitions(-DPOSTGIS_VERSION_STR="${POSTGIS_VERSION_STR}")
+# use POSTGRESQL_VERSION_NUMBER instead of the original POSTGIS_PGSQL_VERSION
+
+add_definitions(-DPOSTGIS_VERSION_STRING="${POSTGIS_VERSION_STR}")
 add_definitions(-DPOSTGIS_VERSION_NUMBER=${POSTGIS_VERSION_NUMBER})
 
 #--------------------------------
@@ -73,6 +76,7 @@ find_package(PROJ REQUIRED)
 include_directories(SYSTEM ${PROJ_INCLUDE_DIRS})
 math(EXPR POSTGIS_PROJ_VERSION "${PROJ_VERSION_MAJOR} * 10 + ${PROJ_VERSION_MINOR}")
 message(STATUS "POSTGIS_PROJ_VERSION: ${POSTGIS_PROJ_VERSION}")
+add_definitions(-DPROJ_VERSION_STRING="${POSTGIS_PROJ_VERSION}")
 
 # GEOS geometry library
 find_package(GEOS REQUIRED)
@@ -102,6 +106,21 @@ add_subdirectory("${CMAKE_SOURCE_DIR}/meos/src" "meos_src")
 # MobilityDB
 include_directories("pg_include")
 add_subdirectory("src")
+
+# Must be after add_library
+if(CMAKE_GENERATOR STREQUAL "Visual Studio 17 2022")
+  # Disable all warnings on embeded code from PostgreSQL and PostGIS
+  target_compile_options(liblwgeom PRIVATE "/W0")
+  target_compile_options(libpgcommon PRIVATE "/W0")
+  target_compile_options(ryu PRIVATE "/W0")
+  # Enable all warnings on MEOS and MobilityDB
+  target_compile_options(general PRIVATE "/W4")
+  target_compile_options(point PRIVATE "/W4")
+  target_compile_options(npoint PRIVATE "/W4")
+  target_compile_options(pg_general PRIVATE "/W4")
+  target_compile_options(pg_point PRIVATE "/W4")
+  target_compile_options(pg_npoint PRIVATE "/W4")
+endif()
 
 #--------------------------------
 # Build MobilityDB library
@@ -142,6 +161,12 @@ target_link_libraries(${MOBILITYDB_LIB_NAME} ${JSON-C_LIBRARIES})
 target_link_libraries(${MOBILITYDB_LIB_NAME} ${LWGEOM_LIBRARIES})
 target_link_libraries(${MOBILITYDB_LIB_NAME} ${GSL_LIBRARY})
 target_link_libraries(${MOBILITYDB_LIB_NAME} ${GSL_CBLAS_LIBRARY})
+target_link_libraries(${MOBILITYDB_LIB_NAME} ${GEOS_LIBRARY})
+target_link_libraries(${MOBILITYDB_LIB_NAME} ${PROJ_LIBRARIES})
+if(WIN32)
+  message(STATUS "Adding PostGIS as a target link library")
+  target_link_libraries(${MOBILITYDB_LIB_NAME} ${POSTGIS_LIBRARY})
+endif()
 
 #--------------------------------
 # Belongs to MobilityDB

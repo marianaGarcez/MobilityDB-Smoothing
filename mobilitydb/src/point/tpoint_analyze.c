@@ -1,12 +1,12 @@
 /*****************************************************************************
  *
  * This MobilityDB code is provided under The PostgreSQL License.
- * Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+ * Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
  * contributors
  *
  * MobilityDB includes portions of PostGIS version 3 source code released
  * under the GNU General Public License (GPLv2 or later).
- * Copyright (c) 2001-2022, PostGIS contributors
+ * Copyright (c) 2001-2023, PostGIS contributors
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written
@@ -23,11 +23,12 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
  * AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
- * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  *****************************************************************************/
 
 /**
+ * @file
  * @brief Functions for gathering statistics from temporal point columns.
  *
  * Various kind of statistics are collected for both the value and the time
@@ -62,14 +63,16 @@
 #include <access/htup_details.h>
 #include <executor/spi.h>
 #include <utils/lsyscache.h>
-/* MobilityDB */
+/* MEOS */
 #include <meos.h>
 #include <meos_internal.h>
-#include "pg_general/span_analyze.h"
-#include "pg_general/temporal_analyze.h"
 #include "point/tpoint.h"
 #include "point/tpoint_spatialfuncs.h"
 #include "npoint/tnpoint_spatialfuncs.h"
+/* MobilityDB */
+#include "pg_general/meos_catalog.h"
+#include "pg_general/span_analyze.h"
+#include "pg_general/temporal_analyze.h"
 
 /*****************************************************************************
  * Functions copied from PostGIS file gserialized_estimate.c
@@ -83,7 +86,7 @@
 */
 
 /**
- * Assign a number to the n-dimensional statistics kind
+ * @brief Assign a number to the n-dimensional statistics kind
  */
 #define STATISTIC_KIND_ND 102
 #define STATISTIC_KIND_2D 103
@@ -91,7 +94,7 @@
 #define STATISTIC_SLOT_2D 1
 
 /**
- * The SD factor restricts the side of the statistics histogram
+ * @brief The SD factor restricts the side of the statistics histogram
  * based on the standard deviation of the extent of the data.
  * SDFACTOR is the number of standard deviations from the mean
  * the histogram will extend.
@@ -99,7 +102,7 @@
 #define SDFACTOR 3.25
 
 /**
- * Minimum width of a dimension that we'll bother trying to
+ * @brief Minimum width of a dimension that we'll bother trying to
  * compute statistics on. Bearing in mind we have no control
  * over units, but noting that for geographics, 10E-5 is in the
  * range of meters, we go lower than that.
@@ -107,7 +110,7 @@
 #define MIN_DIMENSION_WIDTH 0.000000001
 
 /**
- * Maximum width of a dimension that we'll bother trying to
+ * @brief Maximum width of a dimension that we'll bother trying to
  * compute statistics on.
  */
 #define MAX_DIMENSION_WIDTH 1.0E+20
@@ -116,7 +119,7 @@
 #define NUM_BINS 50
 
 /**
- * Integer comparison function for qsort
+ * @brief Integer comparison function for qsort
  */
 static int
 cmp_int(const void *a, const void *b)
@@ -141,9 +144,8 @@ nd_box_init(ND_BOX *a)
 }
 
 /**
- * Prepare an ND_BOX for bounds calculation:
- * set the maxes to the smallest thing possible and
- * the mins to the largest.
+ * @brief Prepare an ND_BOX for bounds calculation: set the maximum values to
+ * the smallest thing possible and the mininum values to the largest.
  */
 static int
 nd_box_init_bounds(ND_BOX *a)
@@ -158,17 +160,16 @@ nd_box_init_bounds(ND_BOX *a)
 }
 
 /**
- * Return the sum of values of the double array
+ * @brief Return the sum of values of the double array
  */
 static double
 total_double(const double *vals, int nvals)
 {
   int i;
-  float total = 0;
+  double total = 0;
   /* Calculate total */
   for (i = 0; i < nvals; i++)
     total += vals[i];
-
   return total;
 }
 
@@ -186,7 +187,7 @@ nd_box_merge(const ND_BOX *source, ND_BOX *target)
 }
 
 /**
- * What stats cells overlap with this ND_BOX? Put the lowest cell
+ * @brief What stats cells overlap with this ND_BOX? Put the lowest cell
  * addresses in ND_IBOX->min and the highest in ND_IBOX->max
  */
 int
@@ -220,7 +221,7 @@ nd_box_overlap(const ND_STATS *nd_stats, const ND_BOX *nd_box, ND_IBOX *nd_ibox)
 }
 
 /**
- * Return true if #ND_BOX a overlaps b, false otherwise.
+ * @brief Return true if #ND_BOX a overlaps b, false otherwise.
  */
 int
 nd_box_intersects(const ND_BOX *a, const ND_BOX *b, int ndims)
@@ -235,7 +236,7 @@ nd_box_intersects(const ND_BOX *a, const ND_BOX *b, int ndims)
 }
 
 /**
- * Return the proportion of b2 that is covered by b1
+ * @brief Return the proportion of b2 that is covered by b1
  */
 double
 nd_box_ratio_overlaps(const ND_BOX *b1, const ND_BOX *b2, int ndims)
@@ -311,7 +312,7 @@ nd_box_from_gbox(const GBOX *gbox, ND_BOX *nd_box)
 }
 
 /**
- * The difference between the fourth and first quintile values,
+ * @brief The difference between the fourth and first quintile values,
  * the "inter-quintile range"
  */
 static int
@@ -322,7 +323,7 @@ range_quintile(int *vals, int nvals)
 }
 
 /**
- * Given an n-d index array (counter), and a domain to increment it
+ * @brief Given an n-d index array (counter), and a domain to increment it
  * in (ibox) increment it by one, unless it's already at the max of
  * the domain, in which case return false.
  */
@@ -349,24 +350,24 @@ nd_increment(ND_IBOX *ibox, int ndims, int *counter)
 }
 
 /**
- * Expand an #ND_BOX ever so slightly. Expand parameter is the proportion
- * of total width to add.
+ * @brief Expand an #ND_BOX ever so slightly. Expand parameter is the
+ * proportion of total width to add.
  */
 static int
-nd_box_expand(ND_BOX *nd_box, double expansion_factor)
+nd_box_expand(ND_BOX *nd_box, float expansion_factor)
 {
   for (int d = 0; d < ND_DIMS; d++)
   {
     double size = nd_box->max[d] - nd_box->min[d];
     if (size <= 0) continue;
-    nd_box->min[d] -= size * expansion_factor / 2;
-    nd_box->max[d] += size * expansion_factor / 2;
+    nd_box->min[d] -= (float4) (size * expansion_factor / 2);
+    nd_box->max[d] += (float4) (size * expansion_factor / 2);
   }
   return true;
 }
 
 /**
- * Given a position in the n-d histogram (i,j,k) return the
+ * @brief Given a position in the n-d histogram (i,j,k) return the
  * position in the 1-d values array.
  */
 int
@@ -391,7 +392,7 @@ nd_stats_value_index(const ND_STATS *stats, const int *indexes)
 }
 
 /**
- * Calculate how much a set of boxes is homogenously distributed
+ * @brief Calculate how much a set of boxes is homogenously distributed
  * or contentrated within one dimension, returning the range_quintile of
  * of the overlap counts per cell in a uniform
  * partition of the extent of the dimension.
@@ -476,10 +477,9 @@ nd_box_array_distribution(const ND_BOX **nd_boxes, int num_boxes, const ND_BOX *
 }
 
 /**
- * Given that geodetic boxes are X/Y/Z regardless of the
- * underlying geometry dimensionality and other boxes
- * are guided by HAS_Z/HAS_M in their dimesionality,
- * we have a little utility function to make it easy.
+ * @brief Given that geodetic boxes are X/Y/Z regardless of the underlying
+ * geometry dimensionality and other boxes are guided by HAS_Z/HAS_M in their
+ * dimesionality, we have a little utility function to make it easy.
  */
 static int
 gbox_ndims(const GBOX* gbox)
@@ -495,7 +495,7 @@ gbox_ndims(const GBOX* gbox)
 }
 
 /**
- * The gserialized_analyze_nd sets this function as a
+ * @brief The gserialized_analyze_nd sets this function as a
  * callback on the stats object when called by the ANALYZE
  * command. ANALYZE then gathers the requisite number of
  * sample rows and then calls this function.
@@ -526,7 +526,6 @@ gserialized_compute_stats(VacAttrStats *stats, AnalyzeAttrFetchFunc fetchfunc,
   size_t  nd_stats_size;          /* Size to allocate */
 
   double total_width = 0;         /* # of bytes used by sample */
-  double total_sample_volume = 0; /* Area/volume coverage of the sample */
   double total_cell_count = 0;    /* # of cells in histogram affected by sample */
 
   ND_BOX sum;                     /* Sum of extents of sample boxes */
@@ -580,15 +579,12 @@ gserialized_compute_stats(VacAttrStats *stats, AnalyzeAttrFetchFunc fetchfunc,
    */
   for ( i = 0; i < sample_rows; i++ )
   {
-    Datum datum;
-    Temporal *temp;
-    STBOX box;
+    STBox box;
     GBOX gbox;
     ND_BOX *nd_box;
-    bool is_null;
-    bool is_copy;
 
-    datum = fetchfunc(stats, i, &is_null);
+    bool is_null;
+    Datum datum = fetchfunc(stats, i, &is_null);
 
     /* Skip all NULLs. */
     if ( is_null )
@@ -598,16 +594,31 @@ gserialized_compute_stats(VacAttrStats *stats, AnalyzeAttrFetchFunc fetchfunc,
     }
 
     /*
-     * This changes wrt the original PostGIS function. We get a temporal
-     * point while the original function gets a geometry.
+     * This changes wrt the original PostGIS function. We get a spatial set or
+     * a temporal point while the original function gets a geometry.
      */
-    temp = DatumGetTemporalP(datum);
+    meosType type = oid_type(stats->attrtypid);
+    assert(spatialset_type(type) || tspatial_type(type));
+    if (spatialset_type(type))
+    {
+      /* Get bounding box from spatial set */
+      Set *set = DatumGetSetP(datum);
+      spatialset_set_stbox(set, &box);
+      /* Free up memory if our temporal point was copied */
+      if (VARATT_IS_EXTENDED(set))
+        pfree(set);
+    }
+    else /* tspatial_type(type) */
+    {
+      /* Get bounding box from temporal point */
+      Temporal *temp = DatumGetTemporalP(datum);
+      temporal_set_bbox(temp, &box);
+      /* Free up memory if our temporal point was copied */
+      if (VARATT_IS_EXTENDED(temp))
+        pfree(temp);
+    }
 
-    /* TO VERIFY */
-    is_copy = VARATT_IS_EXTENDED(temp);
-
-    /* Get bounding box from temporal point */
-    temporal_set_bbox(temp, &box);
+    /* Convert a spatiotemporal box into a PostGIS gbox */
     stbox_set_gbox(&box, &gbox);
 
     /* If we're in 2D mode, zero out the higher dimensions for "safety" */
@@ -650,10 +661,6 @@ gserialized_compute_stats(VacAttrStats *stats, AnalyzeAttrFetchFunc fetchfunc,
 
     /* Increment our "good feature" count */
     notnull_cnt++;
-
-    /* Free up memory if our temporal point was copied */
-    if ( is_copy )
-      pfree(temp);
 
     /* Give backend a chance of interrupting us */
     vacuum_delay_point();
@@ -719,7 +726,7 @@ gserialized_compute_stats(VacAttrStats *stats, AnalyzeAttrFetchFunc fetchfunc,
    * Expand the box slightly (1%) to avoid edge effects
    * with objects that are on the boundary
    */
-  nd_box_expand(&histo_extent_new, 0.01);
+  nd_box_expand(&histo_extent_new, (float4) 0.01);
   histo_extent = histo_extent_new;
 
   /*
@@ -817,14 +824,14 @@ gserialized_compute_stats(VacAttrStats *stats, AnalyzeAttrFetchFunc fetchfunc,
   MemoryContextSwitchTo(old_context);
 
   /* Initialize the #ND_STATS objects */
-  nd_stats->ndims = ndims;
+  nd_stats->ndims = (float4) ndims;
   nd_stats->extent = histo_extent;
-  nd_stats->sample_features = sample_rows;
+  nd_stats->sample_features = (float4) sample_rows;
   nd_stats->table_features = (float4) total_rows;
-  nd_stats->not_null_features = notnull_cnt;
+  nd_stats->not_null_features = (float4) notnull_cnt;
   /* Copy in the histogram dimensions */
   for ( d = 0; d < ndims; d++ )
-    nd_stats->size[d] = histo_size[d];
+    nd_stats->size[d] = (float4) histo_size[d];
 
   /*
    * Fourth scan:
@@ -845,7 +852,6 @@ gserialized_compute_stats(VacAttrStats *stats, AnalyzeAttrFetchFunc fetchfunc,
     ND_IBOX nd_ibox;
     int at[ND_DIMS];
     double num_cells = 0;
-    double tmp_volume = 1.0;
     double min[ND_DIMS] = {0.0, 0.0, 0.0, 0.0};
     double max[ND_DIMS] = {0.0, 0.0, 0.0, 0.0};
     double cellsize[ND_DIMS] = {0.0, 0.0, 0.0, 0.0};
@@ -867,13 +873,7 @@ gserialized_compute_stats(VacAttrStats *stats, AnalyzeAttrFetchFunc fetchfunc,
       min[d] = nd_stats->extent.min[d];
       max[d] = nd_stats->extent.max[d];
       cellsize[d] = (max[d] - min[d])/(nd_stats->size[d]);
-
-      /* What's the volume (area) of this feature's box? */
-      tmp_volume *= (nd_box->max[d] - nd_box->min[d]);
     }
-
-    /* Add feature volume (area) to our total */
-    total_sample_volume += tmp_volume;
 
     /*
      * Move through all the overlaped histogram cells values and
@@ -896,7 +896,7 @@ gserialized_compute_stats(VacAttrStats *stats, AnalyzeAttrFetchFunc fetchfunc,
        * 0.5 added on.
        */
       ratio = nd_box_ratio_overlaps(&nd_cell, nd_box, (int) nd_stats->ndims);
-      nd_stats->value[nd_stats_value_index(nd_stats, at)] += ratio;
+      nd_stats->value[nd_stats_value_index(nd_stats, at)] += (float4) ratio;
       num_cells += ratio;
     }
     while ( nd_increment(&nd_ibox, (int) nd_stats->ndims, at) );
@@ -921,8 +921,8 @@ gserialized_compute_stats(VacAttrStats *stats, AnalyzeAttrFetchFunc fetchfunc,
     return;
   }
 
-  nd_stats->histogram_features = histogram_features;
-  nd_stats->histogram_cells = histo_cells;
+  nd_stats->histogram_features = (float4) histogram_features;
+  nd_stats->histogram_cells = (float4) histo_cells;
   nd_stats->cells_covered = (float4) total_cell_count;
 
   /* Put this histogram data into the right slot/kind */
@@ -940,12 +940,89 @@ gserialized_compute_stats(VacAttrStats *stats, AnalyzeAttrFetchFunc fetchfunc,
   /* Write the statistics data */
   stats->stakind[stats_slot] = (int16) stats_kind;
   stats->staop[stats_slot] = InvalidOid;
-  stats->stanumbers[stats_slot] = (float4*)nd_stats;
-  stats->numnumbers[stats_slot] = (int) (nd_stats_size/sizeof(float4));
-  stats->stanullfrac = (float4)null_cnt/sample_rows;
-  stats->stawidth = (int32) (total_width/notnull_cnt);
+  stats->stanumbers[stats_slot] = (float4 *) nd_stats;
+  stats->numnumbers[stats_slot] = (int) (nd_stats_size / sizeof(float4));
+  stats->stanullfrac = (float4) null_cnt / sample_rows;
+  stats->stawidth = (int32) (total_width / notnull_cnt);
   stats->stadistinct = -1.0f;
   stats->stats_valid = true;
+}
+
+/*****************************************************************************
+ * Statistics for spatial sets
+ *****************************************************************************/
+
+/**
+ * @brief Compute the statistics for spatial set columns (callback function)
+ */
+void
+spatialset_compute_stats(VacAttrStats *stats, AnalyzeAttrFetchFunc fetchfunc,
+  int sample_rows, double total_rows)
+{
+  int notnull_cnt = 0;      /* # not null rows in the sample */
+  int null_cnt = 0;         /* # null rows in the sample */
+  double total_width = 0;   /* # of bytes used by sample */
+
+  /*
+   * First scan for obtaining the number of nulls and not nulls, the total
+   * width and the temporal extents
+   */
+  for (int i = 0; i < sample_rows; i++)
+  {
+    /* Get value and determine whether is null */
+    bool is_null;
+    Datum value = fetchfunc(stats, i, &is_null);
+    /* Skip all NULLs. */
+    if (is_null)
+    {
+      null_cnt++;
+      continue;
+    }
+
+    /* Get spatial set */
+    Set *set = DatumGetSetP(value);
+
+    /* How many bytes does this sample use? */
+    total_width += VARSIZE(set);
+
+    /* Increment our "good feature" count */
+    notnull_cnt++;
+
+    /* Free up memory if our sample temporal point was copied */
+    if (VARATT_IS_EXTENDED(set))
+      pfree(set);
+
+    /* Give backend a chance of interrupting us */
+    vacuum_delay_point();
+  }
+
+  /* We can only compute real stats if we found some non-null values. */
+  if (notnull_cnt > 0)
+  {
+    stats->stats_valid = true;
+    /* Do the simple null-frac and width stats */
+    stats->stanullfrac = (float4) null_cnt / (float4) sample_rows;
+    stats->stawidth = (int) (total_width / notnull_cnt);
+
+    /* Estimate that non-null values are unique */
+    stats->stadistinct = (float4) (-1.0 * (1.0 - stats->stanullfrac));
+
+    /* Compute statistics for spatial dimension */
+    /* 2D Mode */
+    gserialized_compute_stats(stats, fetchfunc, sample_rows, total_rows, 2);
+    /* ND Mode */
+    gserialized_compute_stats(stats, fetchfunc, sample_rows, total_rows, 0);
+  }
+  else if (null_cnt > 0)
+  {
+    /* We found only nulls; assume the column is entirely null */
+    stats->stats_valid = true;
+    stats->stanullfrac = 1.0;
+    stats->stawidth = 0;    /* "unknown" */
+    stats->stadistinct = 0.0;  /* "unknown" */
+  }
+
+  return;
 }
 
 /*****************************************************************************
@@ -953,7 +1030,7 @@ gserialized_compute_stats(VacAttrStats *stats, AnalyzeAttrFetchFunc fetchfunc,
  *****************************************************************************/
 
 /**
- * Compute the statistics for temporal point columns (callback function)
+ * @brief Compute the statistics for temporal point columns (callback function)
  */
 void
 tpoint_compute_stats(VacAttrStats *stats, AnalyzeAttrFetchFunc fetchfunc,
@@ -974,14 +1051,9 @@ tpoint_compute_stats(VacAttrStats *stats, AnalyzeAttrFetchFunc fetchfunc,
    */
   for (int i = 0; i < sample_rows; i++)
   {
-    Datum value;
-    Temporal *temp;
-    Period period;
-    SpanBound period_lower, period_upper;
-    bool is_null, is_copy;
-
-    value = fetchfunc(stats, i, &is_null);
-
+    /* Get value and determine whether is null */
+    bool is_null;
+    Datum value = fetchfunc(stats, i, &is_null);
     /* Skip all NULLs. */
     if (is_null)
     {
@@ -990,29 +1062,28 @@ tpoint_compute_stats(VacAttrStats *stats, AnalyzeAttrFetchFunc fetchfunc,
     }
 
     /* Get temporal point */
-    temp = DatumGetTemporalP(value);
-
-    /* TO VERIFY */
-    is_copy = VARATT_IS_EXTENDED(temp);
+    Temporal *temp = DatumGetTemporalP(value);
 
     /* How many bytes does this sample use? */
     total_width += VARSIZE(temp);
 
     /* Get period from temporal point */
+    Span period;
     temporal_set_period(temp, &period);
 
     /* Remember time bounds and length for further usage in histograms */
+    SpanBound period_lower, period_upper;
     span_deserialize((Span *) &period, &period_lower, &period_upper);
     time_lowers[notnull_cnt] = period_lower;
     time_uppers[notnull_cnt] = period_upper;
-    time_lengths[notnull_cnt] = distance_elem_elem(period_upper.val,
+    time_lengths[notnull_cnt] = distance_value_value(period_upper.val,
       period_lower.val, T_TIMESTAMPTZ, T_TIMESTAMPTZ);
 
     /* Increment our "good feature" count */
     notnull_cnt++;
 
     /* Free up memory if our sample temporal point was copied */
-    if (is_copy)
+    if (VARATT_IS_EXTENDED(temp))
       pfree(temp);
 
     /* Give backend a chance of interrupting us */
@@ -1036,9 +1107,9 @@ tpoint_compute_stats(VacAttrStats *stats, AnalyzeAttrFetchFunc fetchfunc,
     /* ND Mode */
     gserialized_compute_stats(stats, fetchfunc, sample_rows, total_rows, 0);
 
-    /* Compute statistics for time dimension */
-    span_compute_stats(stats, notnull_cnt, &slot_idx, time_lowers, time_uppers,
-      time_lengths, T_PERIOD);
+    /* Last argument is false to compute statistics for time dimension */
+    span_compute_stats_generic(stats, notnull_cnt, &slot_idx, time_lowers,
+      time_uppers, time_lengths, false);
   }
   else if (null_cnt > 0)
   {
@@ -1057,14 +1128,41 @@ tpoint_compute_stats(VacAttrStats *stats, AnalyzeAttrFetchFunc fetchfunc,
 
 /*****************************************************************************/
 
+PGDLLEXPORT Datum Spatialset_analyze(PG_FUNCTION_ARGS);
+PG_FUNCTION_INFO_V1(Spatialset_analyze);
+/**
+ * @brief Compute the statistics for spatial set columns
+ */
+Datum
+Spatialset_analyze(PG_FUNCTION_ARGS)
+{
+  VacAttrStats *stats = (VacAttrStats *) PG_GETARG_POINTER(0);
+
+  /* Ensure type has a STBox as a bounding box */
+  assert(spatialset_type(oid_type(stats->attrtypid)));
+
+  /*
+   * Call the standard typanalyze function. It may fail to find needed
+   * operators, in which case we also can't do anything, so just fail.
+   */
+  if (! std_typanalyze(stats))
+    PG_RETURN_BOOL(false);
+
+  /* Set the callback function to compute statistics. */
+  stats->compute_stats = spatialset_compute_stats;
+
+  PG_RETURN_BOOL(true);
+}
+
+PGDLLEXPORT Datum Tpoint_analyze(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Tpoint_analyze);
 /**
- * Compute the statistics for temporal point columns
+ * @brief Compute the statistics for temporal point columns
  */
-PGDLLEXPORT Datum
+Datum
 Tpoint_analyze(PG_FUNCTION_ARGS)
 {
-  return generic_analyze(fcinfo, &tpoint_compute_stats);
+  return temporal_analyze(fcinfo, &tpoint_compute_stats);
 }
 
 /*****************************************************************************/

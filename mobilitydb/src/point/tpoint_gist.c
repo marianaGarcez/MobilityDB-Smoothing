@@ -1,12 +1,12 @@
 /*****************************************************************************
  *
  * This MobilityDB code is provided under The PostgreSQL License.
- * Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+ * Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
  * contributors
  *
  * MobilityDB includes portions of PostGIS version 3 source code released
  * under the GNU General Public License (GPLv2 or later).
- * Copyright (c) 2001-2022, PostGIS contributors
+ * Copyright (c) 2001-2023, PostGIS contributors
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written
@@ -23,11 +23,12 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
  * AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
- * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  *****************************************************************************/
 
 /**
+ * @file
  * @brief R-tree GiST index for temporal points.
  */
 
@@ -44,10 +45,11 @@
 /* MEOS */
 #include <meos.h>
 #include <meos_internal.h>
-#include "general/temporal_util.h"
+#include "general/set.h"
+#include "general/type_util.h"
 /* MobilityDB */
+#include "pg_general/meos_catalog.h"
 #include "pg_general/temporal.h"
-#include "pg_general/temporal_catalog.h"
 #include "pg_general/time_gist.h"
 #include "pg_general/tnumber_gist.h"
 
@@ -56,7 +58,7 @@
  *****************************************************************************/
 
 /**
- * Leaf-level consistency for temporal points.
+ * @brief Leaf-level consistency for temporal points.
  *
  * Since spatiotemporal boxes do not distinguish between inclusive and
  * exclusive bounds it is necessary to generalize the tests, e.g.,
@@ -71,7 +73,7 @@
  * @note This function is used for both GiST and SP-GiST indexes
  */
 bool
-stbox_index_consistent_leaf(const STBOX *key, const STBOX *query,
+stbox_index_consistent_leaf(const STBox *key, const STBox *query,
   StrategyNumber strategy)
 {
   bool retval;
@@ -150,7 +152,7 @@ stbox_index_consistent_leaf(const STBOX *key, const STBOX *query,
 }
 
 /**
- * Internal-page consistent method for temporal points.
+ * @brief Internal-page consistent method for temporal points.
  *
  * Return false if for all data items x below entry, the predicate
  * x op query must be false, where op is the oper corresponding to strategy
@@ -161,7 +163,7 @@ stbox_index_consistent_leaf(const STBOX *key, const STBOX *query,
  * @param[in] strategy Operator of the operator class being applied
  */
 static bool
-stbox_gist_consistent(const STBOX *key, const STBOX *query,
+stbox_gist_consistent(const STBox *key, const STBox *query,
   StrategyNumber strategy)
 {
   bool retval;
@@ -237,8 +239,7 @@ stbox_gist_consistent(const STBOX *key, const STBOX *query,
 }
 
 /**
- * Determine whether a recheck is necessary depending on the strategy
- *
+ * @brief Determine whether a recheck is necessary depending on the strategy
  * @param[in] strategy Operator of the operator class being applied
  */
 bool
@@ -248,6 +249,7 @@ tpoint_index_recheck(StrategyNumber strategy)
    * inclusive or exclusive bounds */
   switch (strategy)
   {
+    case RTAdjacentStrategyNumber:
     case RTLeftStrategyNumber:
     case RTOverLeftStrategyNumber:
     case RTRightStrategyNumber:
@@ -267,46 +269,23 @@ tpoint_index_recheck(StrategyNumber strategy)
 }
 
 /**
- * Transform the query argument into a box initializing the dimensions that
- * must not be taken into account by the operators to infinity.
+ * @brief Transform the query argument into a box initializing the dimensions
+ * that must not be taken into account by the operators to infinity.
  */
 static bool
-tpoint_gist_get_stbox(FunctionCallInfo fcinfo, STBOX *result,
-  mobdbType type)
+tpoint_gist_get_stbox(FunctionCallInfo fcinfo, STBox *result, meosType type)
 {
-  if (tgeo_basetype(type))
+  if (type == T_TSTZSPAN)
   {
-    GSERIALIZED *gs = PG_GETARG_GSERIALIZED_P(1);
-    if (gs == NULL || gserialized_is_empty(gs))
-      return false;
-    geo_set_stbox(gs, result);
-  }
-  else if (type == T_TIMESTAMPTZ)
-  {
-    TimestampTz t = PG_GETARG_TIMESTAMPTZ(1);
-    timestamp_set_stbox(t, result);
-  }
-  else if (type == T_TIMESTAMPSET)
-  {
-    Datum tsdatum = PG_GETARG_DATUM(1);
-    timestampset_stbox_slice(tsdatum, result);
-  }
-  else if (type == T_PERIOD)
-  {
-    Period *p = PG_GETARG_SPAN_P(1);
+    Span *p = PG_GETARG_SPAN_P(1);
     period_set_stbox(p, result);
-  }
-  else if (type == T_PERIODSET)
-  {
-    Datum psdatum = PG_GETARG_DATUM(1);
-    periodset_stbox_slice(psdatum, result);
   }
   else if (type == T_STBOX)
   {
-    STBOX *box = PG_GETARG_STBOX_P(1);
+    STBox *box = PG_GETARG_STBOX_P(1);
     if (box == NULL)
       return false;
-    memcpy(result, box, sizeof(STBOX));
+    memcpy(result, box, sizeof(STBox));
   }
   else if (tspatial_type(type))
   {
@@ -320,18 +299,19 @@ tpoint_gist_get_stbox(FunctionCallInfo fcinfo, STBOX *result,
   return true;
 }
 
+PGDLLEXPORT Datum Stbox_gist_consistent(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Stbox_gist_consistent);
 /**
- * GiST consistent method for temporal points
+ * @brief GiST consistent method for temporal points
  */
-PGDLLEXPORT Datum
+Datum
 Stbox_gist_consistent(PG_FUNCTION_ARGS)
 {
   GISTENTRY *entry = (GISTENTRY *) PG_GETARG_POINTER(0);
   StrategyNumber strategy = (StrategyNumber) PG_GETARG_UINT16(2);
   Oid typid = PG_GETARG_OID(3);
   bool *recheck = (bool *) PG_GETARG_POINTER(4), result;
-  STBOX *key = DatumGetSTboxP(entry->key), query;
+  STBox *key = DatumGetSTboxP(entry->key), query;
 
   /* Determine whether the index is lossy depending on the strategy */
   *recheck = tpoint_index_recheck(strategy);
@@ -356,13 +336,13 @@ Stbox_gist_consistent(PG_FUNCTION_ARGS)
  *****************************************************************************/
 
 /**
- * Increase the first box to include the second one
+ * @brief Increase the first box to include the second one
  */
 void
 stbox_adjust(void *bbox1, void *bbox2)
 {
-  STBOX *box1 = (STBOX *) bbox1;
-  STBOX *box2 = (STBOX *) bbox2;
+  STBox *box1 = (STBox *) bbox1;
+  STBox *box2 = (STBox *) bbox2;
   box1->xmin = FLOAT8_MIN(box1->xmin, box2->xmin);
   box1->xmax = FLOAT8_MAX(box1->xmax, box2->xmax);
   box1->ymin = FLOAT8_MIN(box1->ymin, box2->ymin);
@@ -378,18 +358,19 @@ stbox_adjust(void *bbox1, void *bbox2)
   return;
 }
 
+PGDLLEXPORT Datum Stbox_gist_union(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Stbox_gist_union);
 /**
- * GiST union method for temporal points
+ * @brief GiST union method for temporal points
  *
  * Return the minimal bounding box that encloses all the entries in entryvec
  */
-PGDLLEXPORT Datum
+Datum
 Stbox_gist_union(PG_FUNCTION_ARGS)
 {
   GistEntryVector *entryvec = (GistEntryVector *) PG_GETARG_POINTER(0);
   GISTENTRY *ent = entryvec->vector;
-  STBOX *result = stbox_copy(DatumGetSTboxP(ent[0].key));
+  STBox *result = stbox_copy(DatumGetSTboxP(ent[0].key));
   for (int i = 1; i < entryvec->n; i++)
     stbox_adjust(result, DatumGetSTboxP(ent[i].key));
   PG_RETURN_SPAN_P(result);
@@ -399,18 +380,19 @@ Stbox_gist_union(PG_FUNCTION_ARGS)
  * GiST compress methods
  *****************************************************************************/
 
+PGDLLEXPORT Datum Tpoint_gist_compress(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Tpoint_gist_compress);
 /**
- * GiST compress methods for temporal points
+ * @brief GiST compress methods for temporal points
  */
-PGDLLEXPORT Datum
+Datum
 Tpoint_gist_compress(PG_FUNCTION_ARGS)
 {
   GISTENTRY *entry = (GISTENTRY *) PG_GETARG_POINTER(0);
   if (entry->leafkey)
   {
     GISTENTRY *retval = palloc(sizeof(GISTENTRY));
-    STBOX *box = palloc(sizeof(STBOX));
+    STBox *box = palloc(sizeof(STBox));
     temporal_bbox_slice(entry->key, box);
     gistentryinit(*retval, PointerGetDatum(box), entry->rel, entry->page,
       entry->offset, false);
@@ -424,15 +406,14 @@ Tpoint_gist_compress(PG_FUNCTION_ARGS)
  *****************************************************************************/
 
 /**
- * Calculates the union of two tboxes.
- *
+ * @brief Calculate the union of two tboxes.
  * @param[in] a,b Input boxes
  * @param[out] new Resulting box
  */
 static void
-stbox_union_rt(const STBOX *a, const STBOX *b, STBOX *new)
+stbox_union_rt(const STBox *a, const STBox *b, STBox *new)
 {
-  memset(new, 0, sizeof(STBOX));
+  memset(new, 0, sizeof(STBox));
   new->xmin = FLOAT8_MIN(a->xmin, b->xmin);
   new->xmax = FLOAT8_MAX(a->xmax, b->xmax);
   new->ymin = FLOAT8_MIN(a->ymin, b->ymin);
@@ -449,12 +430,16 @@ stbox_union_rt(const STBOX *a, const STBOX *b, STBOX *new)
 }
 
 /**
- * Return the size of a spatiotemporal box for penalty-calculation purposes.
- * The result can be +Infinity, but not NaN.
+ * @brief Return the size of a spatiotemporal box for penalty-calculation
+ * purposes. The result can be +Infinity, but not NaN.
  */
 static double
-stbox_size(const STBOX *box)
+stbox_size(const STBox *box)
 {
+  double result_size = 1;
+  bool  hasx = MEOS_FLAGS_GET_X(box->flags),
+        hasz = MEOS_FLAGS_GET_Z(box->flags),
+        hast = MEOS_FLAGS_GET_T(box->flags);
   /*
    * Check for zero-width cases.  Note that we define the size of a zero-
    * by-infinity box as zero.  It's important to special-case this somehow,
@@ -462,9 +447,10 @@ stbox_size(const STBOX *box)
    *
    * The less-than cases should not happen, but if they do, say "zero".
    */
-  if (FLOAT8_LE(box->xmax, box->xmin) || FLOAT8_LE(box->ymax, box->ymin) ||
-    FLOAT8_LE(box->zmax, box->zmin) ||
-    datum_le(box->period.upper, box->period.lower, T_TIMESTAMPTZ))
+  if ((hasx && (FLOAT8_LE(box->xmax, box->xmin)
+                || FLOAT8_LE(box->ymax, box->ymin)
+                || (hasz && FLOAT8_LE(box->zmax, box->zmin))))
+      || (hast && datum_le(box->period.upper, box->period.lower, T_TIMESTAMPTZ)))
     return 0.0;
 
   /*
@@ -472,40 +458,53 @@ stbox_size(const STBOX *box)
    * and a non-NaN is infinite.  Note the previous check eliminated the
    * possibility that the low fields are NaNs.
    */
-  if (isnan(box->xmax) || isnan(box->ymax) || isnan(box->zmax))
+  if (hasx && (isnan(box->xmax) || isnan(box->ymax) || (hasz && isnan(box->zmax))))
     return get_float8_infinity();
-  return (box->xmax - box->xmin) * (box->ymax - box->ymin) *
-    (box->zmax - box->zmin) * (DatumGetTimestampTz(box->period.upper) -
-      DatumGetTimestampTz(box->period.lower));
+
+  /*
+   * Compute the box size
+   */
+  if (hasx)
+  {
+    result_size *= (box->xmax - box->xmin) * (box->ymax - box->ymin);
+    if (hasz)
+      result_size *= (box->xmax - box->xmin) * (box->ymax - box->ymin);
+  }
+  if (hast)
+    /* Expressed in seconds */
+    result_size *= (DatumGetTimestampTz(box->period.upper) -
+      DatumGetTimestampTz(box->period.lower)) / USECS_PER_SEC;
+  return result_size;
 }
 
 /**
- * Return the amount by which the union of the two boxes is larger than
- * the original STBOX's volume.  The result can be +Infinity, but not NaN.
+ * @brief Return the amount by which the union of the two boxes is larger than
+ * the original STBox's volume.  The result can be +Infinity, but not NaN.
  */
 double
 stbox_penalty(void *bbox1, void *bbox2)
 {
-  const STBOX *original = (STBOX *) bbox1;
-  const STBOX *new = (STBOX *) bbox2;
-  STBOX unionbox;
+  const STBox *original = (STBox *) bbox1;
+  const STBox *new = (STBox *) bbox2;
+  STBox unionbox;
   stbox_union_rt(original, new, &unionbox);
   return stbox_size(&unionbox) - stbox_size(original);
 }
 
+PGDLLEXPORT Datum Stbox_gist_penalty(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Stbox_gist_penalty);
 /**
- * GiST penalty method for temporal points.
+ * @brief GiST penalty method for temporal points.
  * As in the R-tree paper, we use change in area as our penalty metric
  */
-PGDLLEXPORT Datum
+Datum
 Stbox_gist_penalty(PG_FUNCTION_ARGS)
 {
   GISTENTRY *origentry = (GISTENTRY *) PG_GETARG_POINTER(0);
   GISTENTRY *newentry = (GISTENTRY *) PG_GETARG_POINTER(1);
   float *result = (float *) PG_GETARG_POINTER(2);
-  void *origstbox = (STBOX *) DatumGetPointer(origentry->key);
-  void *newbox = (STBOX *) DatumGetPointer(newentry->key);
+  void *origstbox = (STBox *) DatumGetPointer(origentry->key);
+  void *newbox = (STBox *) DatumGetPointer(newentry->key);
   *result = (float) stbox_penalty(origstbox, newbox);
   PG_RETURN_POINTER(result);
 }
@@ -514,9 +513,10 @@ Stbox_gist_penalty(PG_FUNCTION_ARGS)
  * GiST picksplit method
  *****************************************************************************/
 
+PGDLLEXPORT Datum Stbox_gist_picksplit(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Stbox_gist_picksplit);
 /**
- * GiST picksplit method for temporal points.
+ * @brief GiST picksplit method for temporal points.
  *
  * The algorithm finds split of boxes by considering splits along each axis.
  * Each entry is first projected as an interval on the X-axis, and different
@@ -539,7 +539,7 @@ PG_FUNCTION_INFO_V1(Stbox_gist_picksplit);
  * "A new double sorting-based node splitting algorithm for R-tree", A. Korotkov
  * http://syrcose.ispras.ru/2011/files/SYRCoSE2011_Proceedings.pdf#page=36
  */
-PGDLLEXPORT Datum
+Datum
 Stbox_gist_picksplit(PG_FUNCTION_ARGS)
 {
   return bbox_gist_picksplit_ext(fcinfo, T_STBOX, &stbox_adjust, &stbox_penalty);
@@ -548,19 +548,20 @@ Stbox_gist_picksplit(PG_FUNCTION_ARGS)
  * GiST same method
  *****************************************************************************/
 
+PGDLLEXPORT Datum Stbox_gist_same(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Stbox_gist_same);
 /**
- * GiST same method for temporal points.
+ * @brief GiST same method for temporal points.
  *
  * Return true only when boxes are exactly the same.  We can't use fuzzy
  * comparisons here without breaking index consistency; therefore, this isn't
  * equivalent to stbox_same().
  */
-PGDLLEXPORT Datum
+Datum
 Stbox_gist_same(PG_FUNCTION_ARGS)
 {
-  STBOX *b1 = PG_GETARG_STBOX_P(0);
-  STBOX *b2 = PG_GETARG_STBOX_P(1);
+  STBox *b1 = PG_GETARG_STBOX_P(0);
+  STBox *b2 = PG_GETARG_STBOX_P(1);
   bool *result = (bool *) PG_GETARG_POINTER(2);
   if (b1 && b2)
     *result = (FLOAT8_EQ(b1->xmin, b2->xmin) && FLOAT8_EQ(b1->ymin, b2->ymin) &&
@@ -578,19 +579,20 @@ Stbox_gist_same(PG_FUNCTION_ARGS)
  * GiST distance method
  *****************************************************************************/
 
+PGDLLEXPORT Datum Stbox_gist_distance(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Stbox_gist_distance);
 /**
- * GiST support function. Take in a query and an entry and return the "distance"
- * between them.
+ * @brief GiST support function. Take in a query and an entry and return the
+ * "distance" between them.
 */
-PGDLLEXPORT Datum
+Datum
 Stbox_gist_distance(PG_FUNCTION_ARGS)
 {
   GISTENTRY *entry = (GISTENTRY *) PG_GETARG_POINTER(0);
   Oid typid = PG_GETARG_OID(3);
   bool *recheck = (bool *) PG_GETARG_POINTER(4);
-  STBOX *key = (STBOX *) DatumGetPointer(entry->key);
-  STBOX query;
+  STBox *key = (STBox *) DatumGetPointer(entry->key);
+  STBox query;
   double distance;
 
   /* The index is lossy for leaf levels */

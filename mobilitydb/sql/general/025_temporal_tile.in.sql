@@ -1,12 +1,12 @@
 /*****************************************************************************
  *
  * This MobilityDB code is provided under The PostgreSQL License.
- * Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+ * Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
  * contributors
  *
  * MobilityDB includes portions of PostGIS version 3 source code released
  * under the GNU General Public License (GPLv2 or later).
- * Copyright (c) 2001-2022, PostGIS contributors
+ * Copyright (c) 2001-2023, PostGIS contributors
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written
@@ -23,7 +23,7 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
  * AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
- * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  *****************************************************************************/
 
@@ -68,12 +68,12 @@ CREATE FUNCTION valueBucket("value" float, size float,
   AS 'MODULE_PATHNAME', 'Number_bucket'
   LANGUAGE C IMMUTABLE PARALLEL SAFE STRICT;
 
-CREATE FUNCTION spanBucket(value integer, size integer,
+CREATE FUNCTION spanBucket("value" integer, size integer,
   origin integer DEFAULT 0)
   RETURNS intspan
   AS 'MODULE_PATHNAME', 'Span_bucket'
   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-CREATE FUNCTION spanBucket(value float, size float,
+CREATE FUNCTION spanBucket("value" float, size float,
   origin float DEFAULT 0.0)
   RETURNS floatspan
   AS 'MODULE_PATHNAME', 'Span_bucket'
@@ -81,13 +81,13 @@ CREATE FUNCTION spanBucket(value float, size float,
 
 /*****************************************************************************/
 
-CREATE TYPE time_period AS (
+CREATE TYPE index_span AS (
   index integer,
-  period period
+  span tstzspan
 );
 
-CREATE FUNCTION bucketList(period, interval, timestamptz DEFAULT '2000-01-03')
-  RETURNS SETOF time_period
+CREATE FUNCTION bucketList(tstzspan, interval, timestamptz DEFAULT '2000-01-03')
+  RETURNS SETOF index_span
   AS 'MODULE_PATHNAME', 'Period_bucket_list'
   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
 
@@ -108,7 +108,7 @@ CREATE FUNCTION timeBucket("time" timestamptz, duration interval,
 
 CREATE FUNCTION periodBucket(timestamptz, interval,
   timestamptz DEFAULT '2000-01-03')
-  RETURNS period
+  RETURNS tstzspan
   AS 'MODULE_PATHNAME', 'Period_bucket'
   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
 
@@ -118,21 +118,21 @@ CREATE FUNCTION periodBucket(timestamptz, interval,
 
 CREATE TYPE index_tbox AS (
   index integer,
-  box tbox
+  tile tbox
 );
 
-CREATE FUNCTION multidimGrid(bounds tbox, size float,
+CREATE FUNCTION tileList(bounds tbox, size float,
   duration interval, vorigin float DEFAULT 0.0,
   torigin timestamptz DEFAULT '2000-01-03')
   RETURNS SETOF index_tbox
-  AS 'MODULE_PATHNAME', 'Tbox_multidim_grid'
+  AS 'MODULE_PATHNAME', 'Tbox_tile_list'
   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
 
-CREATE FUNCTION multidimTile("value" float, "time" timestamptz,
+CREATE FUNCTION tile("value" float, "time" timestamptz,
   size float, duration interval, vorigin float DEFAULT 0.0,
   torigin timestamptz DEFAULT '2000-01-03')
   RETURNS tbox
-  AS 'MODULE_PATHNAME', 'Tbox_multidim_tile'
+  AS 'MODULE_PATHNAME', 'Tbox_tile'
   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
 
 /*****************************************************************************

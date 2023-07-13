@@ -1,12 +1,12 @@
 /*****************************************************************************
  *
  * This MobilityDB code is provided under The PostgreSQL License.
- * Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+ * Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
  * contributors
  *
  * MobilityDB includes portions of PostGIS version 3 source code released
  * under the GNU General Public License (GPLv2 or later).
- * Copyright (c) 2001-2022, PostGIS contributors
+ * Copyright (c) 2001-2023, PostGIS contributors
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written
@@ -23,7 +23,7 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
  * AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
- * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  *****************************************************************************/
 
@@ -36,10 +36,10 @@
 
 /* PostgreSQL */
 #include <postgres.h>
-/* MobilityDB */
+/* MEOS */
+#include "general/meos_catalog.h"
 #include "general/temporal.h"
 #include "general/span.h"
-#include "general/temporal_catalog.h"
 
 /*****************************************************************************/
 
@@ -50,21 +50,21 @@ extern double tnumberinst_double(const TInstant *inst);
 
 /* Input/output functions */
 
-extern char *tinstant_to_string(const TInstant *inst, Datum arg,
-  char *(*value_out)(mobdbType, Datum, Datum));
+extern char *tinstant_to_string(const TInstant *inst, int maxdd,
+  outfunc value_out);
 
 /* Restriction Functions */
 
 extern bool tinstant_restrict_values_test(const TInstant *inst,
-  const Datum *values, int count, bool atfunc);
+  const Set *set, bool atfunc);
 extern bool tnumberinst_restrict_span_test(const TInstant *inst,
   const Span *span, bool atfunc);
-extern bool tnumberinst_restrict_spans_test(const TInstant *inst,
-  Span **normspans, int count, bool atfunc);
+extern bool tnumberinst_restrict_spanset_test(const TInstant *inst,
+  const SpanSet *ss, bool atfunc);
 extern bool tinstant_restrict_timestampset_test(const TInstant *inst,
-  const TimestampSet *ts, bool atfunc);
+  const Set *ts, bool atfunc);
 extern bool tinstant_restrict_periodset_test(const TInstant *inst,
-  const PeriodSet *ps, bool atfunc);
+  const SpanSet *ps, bool atfunc);
 
 /* Intersection function */
 

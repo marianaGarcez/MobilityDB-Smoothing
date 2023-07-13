@@ -1,12 +1,12 @@
 /*****************************************************************************
  *
  * This MobilityDB code is provided under The PostgreSQL License.
- * Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+ * Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
  * contributors
  *
  * MobilityDB includes portions of PostGIS version 3 source code released
  * under the GNU General Public License (GPLv2 or later).
- * Copyright (c) 2001-2022, PostGIS contributors
+ * Copyright (c) 2001-2023, PostGIS contributors
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written
@@ -23,11 +23,12 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
  * AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
- * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  *****************************************************************************/
 
 /**
+ * @file
  * @brief Output of temporal points in WKT, EWKT, and MF-JSON format.
  */
 
@@ -38,12 +39,13 @@
 #include <float.h>
 /* PostGIS */
 #include <liblwgeom_internal.h>
-/* MobilityDB */
+/* MEOS */
 #include <meos.h>
+#include <meos_internal.h>
 #include "general/tinstant.h"
 #include "general/tsequence.h"
 #include "general/tsequenceset.h"
-#include "general/temporal_util.h"
+#include "general/type_util.h"
 #include "point/tpoint_spatialfuncs.h"
 
 /*****************************************************************************
@@ -51,17 +53,16 @@
  *****************************************************************************/
 
 /**
- * Output a geometry in Well-Known Text (WKT) format.
- *
- * @note The parameter type is not needed for temporal points
+ * @brief Output a geometry in Well-Known Text (WKT) format.
+ * @note The parameter `type` is not needed for temporal points
  */
-static char *
-wkt_out(mobdbType basetype __attribute__((unused)), Datum value, Datum arg)
+char *
+wkt_out(Datum value, meosType type __attribute__((unused)), int maxdd)
 {
   GSERIALIZED *gs = DatumGetGserializedP(value);
   LWGEOM *geom = lwgeom_from_gserialized(gs);
   size_t len;
-  char *wkt = lwgeom_to_wkt(geom, WKT_ISO, DatumGetInt32(arg), &len);
+  char *wkt = lwgeom_to_wkt(geom, WKT_ISO, maxdd, &len);
   char *result = palloc(len);
   strcpy(result, wkt);
   lwgeom_free(geom);
@@ -70,18 +71,17 @@ wkt_out(mobdbType basetype __attribute__((unused)), Datum value, Datum arg)
 }
 
 /**
- * Output a geometry in Extended Well-Known Text (EWKT) format,
- * that is, in WKT format prefixed with the SRID.
- *
- * @note The parameter type is not needed for temporal points
+ * @brief Output a geometry in Extended Well-Known Text (EWKT) format, that is,
+ * in WKT format prefixed with the SRID.
+ * @note The parameter `type` is not needed for temporal points
  */
 char *
-ewkt_out(mobdbType basetype __attribute__((unused)), Datum value, Datum arg)
+ewkt_out(Datum value, meosType type __attribute__((unused)), int maxdd)
 {
   GSERIALIZED *gs = (GSERIALIZED *)DatumGetPointer(value);
   LWGEOM *geom = lwgeom_from_gserialized(gs);
   size_t len;
-  char *wkt = lwgeom_to_wkt(geom, WKT_EXTENDED, DatumGetInt32(arg), &len);
+  char *wkt = lwgeom_to_wkt(geom, WKT_EXTENDED, maxdd, &len);
   char *result = palloc(len);
   strcpy(result, wkt);
   lwgeom_free(geom);
@@ -90,7 +90,7 @@ ewkt_out(mobdbType basetype __attribute__((unused)), Datum value, Datum arg)
 }
 
 /**
- * @ingroup libmeos_temporal_in_out
+ * @ingroup libmeos_temporal_inout
  * @brief Return the Well-Known Text (WKT) representation of a temporal point.
  * @sqlfunc asText()
  */
@@ -98,21 +98,18 @@ char *
 tpoint_as_text(const Temporal *temp, int maxdd)
 {
   char *result;
-  ensure_valid_tempsubtype(temp->subtype);
+  assert(temptype_subtype(temp->subtype));
   if (temp->subtype == TINSTANT)
-    result = tinstant_to_string((TInstant *) temp, Int32GetDatum(maxdd),
-      &wkt_out);
+    result = tinstant_to_string((TInstant *) temp, maxdd, &wkt_out);
   else if (temp->subtype == TSEQUENCE)
-    result = tsequence_to_string((TSequence *) temp, Int32GetDatum(maxdd),
-      false, &wkt_out);
+    result = tsequence_to_string((TSequence *) temp, maxdd, false, &wkt_out);
   else /* temp->subtype == TSEQUENCESET */
-    result = tsequenceset_to_string((TSequenceSet *) temp, Int32GetDatum(maxdd),
-      &wkt_out);
+    result = tsequenceset_to_string((TSequenceSet *) temp, maxdd, &wkt_out);
   return result;
 }
 
 /**
- * @ingroup libmeos_temporal_in_out
+ * @ingroup libmeos_temporal_inout
  * @brief Return the Extended Well-Known Text (EWKT) representation a temporal
  * point.
  * @sqlfunc asEWKT()
@@ -123,8 +120,8 @@ tpoint_as_ewkt(const Temporal *temp, int maxdd)
   int srid = tpoint_srid(temp);
   char str1[20];
   if (srid > 0)
-    sprintf(str1, "SRID=%d%c", srid, 
-      (MOBDB_FLAGS_GET_INTERP(temp->flags) == STEPWISE) ? ',' : ';');
+    sprintf(str1, "SRID=%d%c", srid,
+      (MEOS_FLAGS_GET_INTERP(temp->flags) == STEP) ? ',' : ';');
   else
     str1[0] = '\0';
   char *str2 = tpoint_as_text(temp, maxdd);
@@ -138,7 +135,7 @@ tpoint_as_ewkt(const Temporal *temp, int maxdd)
 /*****************************************************************************/
 
 /**
- * @ingroup libmeos_int_temporal_in_out
+ * @ingroup libmeos_internal_temporal_inout
  * @brief Return the Well-Known Text (WKT) or the Extended Well-Known Text (EWKT)
  * representation of a geometry/geography array.
  *
@@ -152,16 +149,15 @@ char **
 geoarr_as_text(const Datum *geoarr, int count, int maxdd, bool extended)
 {
   char **result = palloc(sizeof(char *) * count);
-  Datum arg = Int32GetDatum(maxdd);
   for (int i = 0; i < count; i++)
-    /* The wkt_out and ewkt_out functions do not use the first argument */
+    /* The wkt_out and ewkt_out functions do not use the second argument */
     result[i] = extended ?
-      ewkt_out(0, geoarr[i], arg) : wkt_out(0, geoarr[i], arg);
+      ewkt_out(geoarr[i], 0, maxdd) : wkt_out(geoarr[i], 0, maxdd);
   return result;
 }
 
 /**
- * @ingroup libmeos_int_temporal_in_out
+ * @ingroup libmeos_internal_temporal_inout
  * @brief Return the Well-Known Text (WKT) or the Extended Well-Known Text (EWKT)
  * representation of a temporal point array
  * @sqlfunc asText(), asEWKT()

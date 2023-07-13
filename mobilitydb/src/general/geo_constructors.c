@@ -1,12 +1,12 @@
 /*****************************************************************************
  *
  * This MobilityDB code is provided under The PostgreSQL License.
- * Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+ * Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
  * contributors
  *
  * MobilityDB includes portions of PostGIS version 3 source code released
  * under the GNU General Public License (GPLv2 or later).
- * Copyright (c) 2001-2022, PostGIS contributors
+ * Copyright (c) 2001-2023, PostGIS contributors
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written
@@ -23,11 +23,12 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
  * AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
- * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  *****************************************************************************/
 
 /**
+ * @file
  * @brief Constructors for the 2D geometric operations.
  *
  * This module implements the constructors  for the following geometric
@@ -43,12 +44,15 @@
 #include <utils/float.h>
 #include "utils/geo_decls.h"
 #include "utils/lsyscache.h"
+/* MEOS */
+#include <meos.h>
 
 /*****************************************************************************/
 
+PGDLLEXPORT Datum point_constructor(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(point_constructor);
 /**
- * Point Constructor
+ * @brief Point constructor
  */
 Datum
 point_constructor(PG_FUNCTION_ARGS)
@@ -62,9 +66,10 @@ point_constructor(PG_FUNCTION_ARGS)
   PG_RETURN_POINT_P(point);
 }
 
+PGDLLEXPORT Datum line_constructor(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(line_constructor);
 /**
- * LINE Constructor
+ * @brief LINE constructor
  */
 Datum
 line_constructor(PG_FUNCTION_ARGS)
@@ -80,9 +85,10 @@ line_constructor(PG_FUNCTION_ARGS)
   PG_RETURN_LINE_P(line);
 }
 
+PGDLLEXPORT Datum lseg_constructor(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(lseg_constructor);
 /**
- * LSEG Constructor
+ * @brief LSEG constructor
  */
 Datum
 lseg_constructor(PG_FUNCTION_ARGS)
@@ -98,9 +104,10 @@ lseg_constructor(PG_FUNCTION_ARGS)
   PG_RETURN_LSEG_P(lseg);
 }
 
+PGDLLEXPORT Datum box_constructor(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(box_constructor);
 /**
- * BOX Constructor
+ * @brief BOX constructor
  */
 Datum
 box_constructor(PG_FUNCTION_ARGS)
@@ -116,9 +123,10 @@ box_constructor(PG_FUNCTION_ARGS)
   PG_RETURN_BOX_P(box);
 }
 
+PGDLLEXPORT Datum circle_constructor(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(circle_constructor);
 /**
- * CIRCLE Constructor
+ * @brief CIRCLE constructor
  */
 Datum
 circle_constructor(PG_FUNCTION_ARGS)
@@ -133,9 +141,10 @@ circle_constructor(PG_FUNCTION_ARGS)
   PG_RETURN_CIRCLE_P(circle);
 }
 
+PGDLLEXPORT Datum path_constructor(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(path_constructor);
 /**
- * PATH Constructor
+ * @brief PATH constructor
  */
 Datum
 path_constructor(PG_FUNCTION_ARGS)
@@ -220,9 +229,10 @@ make_bound_box(POLYGON *poly)
   return;
 }
 
+PGDLLEXPORT Datum poly_constructor(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(poly_constructor);
 /**
- * POLYGON Constructor
+ * @brief POLYGON constructor
  */
 Datum
 poly_constructor(PG_FUNCTION_ARGS)

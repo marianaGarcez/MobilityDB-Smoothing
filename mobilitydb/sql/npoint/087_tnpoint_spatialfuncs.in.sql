@@ -1,12 +1,12 @@
 /*****************************************************************************
  *
  * This MobilityDB code is provided under The PostgreSQL License.
- * Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+ * Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
  * contributors
  *
  * MobilityDB includes portions of PostGIS version 3 source code released
  * under the GNU General Public License (GPLv2 or later).
- * Copyright (c) 2001-2022, PostGIS contributors
+ * Copyright (c) 2001-2023, PostGIS contributors
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written
@@ -23,7 +23,7 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
  * AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
- * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  *****************************************************************************/
 
@@ -47,27 +47,32 @@ CREATE FUNCTION SRID(tnpoint)
 
 CREATE FUNCTION trajectory(tnpoint)
   RETURNS geometry
-  AS 'MODULE_PATHNAME', 'Tnpoint_get_trajectory'
+  AS 'MODULE_PATHNAME', 'Tnpoint_trajectory'
   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
 
 /*****************************************************************************
- * AtGeometry
+ * AtGeometry and MinusGeometry
  *****************************************************************************/
 
 CREATE FUNCTION atGeometry(tnpoint, geometry)
   RETURNS tnpoint
-  AS 'MODULE_PATHNAME', 'Tnpoint_at_geometry'
+  AS 'MODULE_PATHNAME', 'Tnpoint_at_geom'
   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-
-/*****************************************************************************
- * MinusGeometry
- *****************************************************************************/
+-- This function is not STRICT
+CREATE FUNCTION atGeometryTime(tnpoint, geometry, tstzspan)
+  RETURNS tnpoint
+  AS 'MODULE_PATHNAME', 'Tnpoint_at_geom_time'
+  LANGUAGE C IMMUTABLE PARALLEL SAFE;
 
 CREATE FUNCTION minusGeometry(tnpoint, geometry)
   RETURNS tnpoint
-  AS 'MODULE_PATHNAME', 'Tnpoint_minus_geometry'
+  AS 'MODULE_PATHNAME', 'Tnpoint_minus_geom'
   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-
+-- This function is not STRICT
+CREATE FUNCTION minusGeometryTime(tnpoint, geometry, tstzspan)
+  RETURNS tnpoint
+  AS 'MODULE_PATHNAME', 'Tnpoint_minus_geom_time'
+  LANGUAGE C IMMUTABLE PARALLEL SAFE;
 
 /*****************************************************************************
  * Equals

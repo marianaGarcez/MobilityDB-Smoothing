@@ -1,12 +1,12 @@
 /*****************************************************************************
  *
  * This MobilityDB code is provided under The PostgreSQL License.
- * Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+ * Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
  * contributors
  *
  * MobilityDB includes portions of PostGIS version 3 source code released
  * under the GNU General Public License (GPLv2 or later).
- * Copyright (c) 2001-2022, PostGIS contributors
+ * Copyright (c) 2001-2023, PostGIS contributors
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written
@@ -23,11 +23,12 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
  * AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
- * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  *****************************************************************************/
 
 /**
+ * @file
  * @brief MobilityDB functions gserialized_func(...) corresponding to external
  * PostGIS functions xxx_func(PG_FUNCTION_ARGS). This avoids bypassing the
  * function manager fmgr.c.
@@ -41,11 +42,14 @@
 /* GEOS */
 #include <geos_c.h>
 /* PostgreSQL */
+#if POSTGRESQL_VERSION_NUMBER >= 160000
+  #include "varatt.h"
+#endif
 /* PostGIS */
 #include <liblwgeom.h>
 #include <lwgeom_log.h>
 #include <lwgeom_geos.h>
-/* MobilityDB */
+/* MEOS */
 #include "general/temporal.h"
 #include "point/tpoint_spatialfuncs.h"
 
@@ -293,9 +297,9 @@ box3d_to_lwgeom(BOX3D *box)
  *****************************************************************************/
 
 /* The boundary function has changed its implementation in version 3.2.
- * This is the version in 3.2.1 */
+ * This is the version in 3.2.3 */
 LWGEOM *
-pgis_lwgeom_boundary(LWGEOM *lwgeom)
+lwgeom_boundary(LWGEOM *lwgeom)
 {
   int32_t srid = lwgeom_get_srid(lwgeom);
   uint8_t hasz = lwgeom_has_z(lwgeom);
@@ -310,10 +314,10 @@ pgis_lwgeom_boundary(LWGEOM *lwgeom)
   case LINETYPE:
   case CIRCSTRINGTYPE: {
     if (lwgeom_is_closed(lwgeom) || lwgeom_is_empty(lwgeom))
-      return (LWGEOM *) lwmpoint_construct_empty(srid, hasz, hasm);
+      return (LWGEOM *)lwmpoint_construct_empty(srid, hasz, hasm);
     else
     {
-      LWLINE *lwline = (LWLINE *) lwgeom;
+      LWLINE *lwline = (LWLINE *)lwgeom;
       LWMPOINT *lwmpoint = lwmpoint_construct_empty(srid, hasz, hasm);
       POINT4D pt;
       getPoint4d_p(lwline->points, 0, &pt);
@@ -332,8 +336,7 @@ pgis_lwgeom_boundary(LWGEOM *lwgeom)
 
     for (uint32_t i = 0; i < lwmline->ngeoms; i++)
     {
-      LWMPOINT *points = lwgeom_as_lwmpoint(pgis_lwgeom_boundary(
-        (LWGEOM *) lwmline->geoms[i]));
+      LWMPOINT *points = lwgeom_as_lwmpoint(lwgeom_boundary((LWGEOM *)lwmline->geoms[i]));
       if (!points)
         continue;
 
@@ -403,8 +406,7 @@ pgis_lwgeom_boundary(LWGEOM *lwgeom)
     LWCOLLECTION *lwcol_boundary = lwcollection_construct_empty(COLLECTIONTYPE, srid, hasz, hasm);
 
     for (uint32_t i = 0; i < lwcol->ngeoms; i++)
-      lwcollection_add_lwgeom(lwcol_boundary,
-        pgis_lwgeom_boundary(lwcol->geoms[i]));
+      lwcollection_add_lwgeom(lwcol_boundary, lwgeom_boundary(lwcol->geoms[i]));
 
     LWGEOM *lwout = lwgeom_homogenize((LWGEOM *)lwcol_boundary);
     lwgeom_free((LWGEOM *)lwcol_boundary);
@@ -412,7 +414,7 @@ pgis_lwgeom_boundary(LWGEOM *lwgeom)
     return lwout;
   }
   default:
-    elog(ERROR, "unsupported geometry type: %s", lwtype_name(lwgeom->type));
+    lwerror("%s: unsupported geometry type: %s", __func__, lwtype_name(lwgeom->type));
     return NULL;
   }
 }
@@ -424,20 +426,17 @@ pgis_lwgeom_boundary(LWGEOM *lwgeom)
 GSERIALIZED *
 gserialized_boundary(const GSERIALIZED *geom1)
 {
-  GSERIALIZED *result;
-  LWGEOM *lwgeom, *lwresult;
-
   /* Empty.Boundary() == Empty, but of other dimension, so can't shortcut */
 
-  lwgeom = lwgeom_from_gserialized(geom1);
-  lwresult = pgis_lwgeom_boundary(lwgeom);
-  if (!lwresult)
+  LWGEOM *lwgeom = lwgeom_from_gserialized(geom1);
+  LWGEOM *lwresult = lwgeom_boundary(lwgeom);
+  if (! lwresult)
   {
     lwgeom_free(lwgeom);
     return NULL;
   }
 
-  result = geo_serialize(lwresult);
+  GSERIALIZED *result = geo_serialize(lwresult);
 
   lwgeom_free(lwgeom);
   lwgeom_free(lwresult);
@@ -535,12 +534,11 @@ bool
 gserialized_3Dintersects(const GSERIALIZED *geom1, const GSERIALIZED *geom2)
 {
   ensure_same_srid(gserialized_get_srid(geom1), gserialized_get_srid(geom2));
-  double mindist;
   LWGEOM *lwgeom1 = lwgeom_from_gserialized(geom1);
   LWGEOM *lwgeom2 = lwgeom_from_gserialized(geom2);
-  mindist = lwgeom_mindistance3d_tolerance(lwgeom1, lwgeom2, 0.0);
-  /*empty geometries cases should be right handled since return from underlying
-    functions should be FLT_MAX which causes false as answer*/
+  double mindist = lwgeom_mindistance3d_tolerance(lwgeom1, lwgeom2, 0.0);
+  /* empty geometries cases should be right handled since return from
+     underlying functions should be FLT_MAX which causes false as answer */
   return (0.0 == mindist);
 }
 
@@ -603,10 +601,9 @@ gserialized_reverse(const GSERIALIZED *geom)
 }
 
 /**
- * Compute the azimuth of segment defined by the two
- * given Point geometries.
- * @return NULL on exception (same point).
- *     Return radians otherwise.
+ * @brief Compute the azimuth of segment defined by the two given Point
+ * geometries.
+ * @return NULL on exception (same point). Return radians otherwise.
  */
 bool
 gserialized_azimuth(GSERIALIZED *geom1, GSERIALIZED *geom2, double *result)
@@ -672,14 +669,14 @@ static char
 gserialized_is_point(const GSERIALIZED* g)
 {
   int type = gserialized_get_type(g);
-  return type == POINTTYPE || type == MULTIPOINTTYPE;
+  return (type == POINTTYPE || type == MULTIPOINTTYPE);
 }
 
 static char
 gserialized_is_poly(const GSERIALIZED* g)
 {
-    int type = gserialized_get_type(g);
-    return type == POLYGONTYPE || type == MULTIPOLYGONTYPE;
+  int type = gserialized_get_type(g);
+  return (type == POLYGONTYPE || type == MULTIPOLYGONTYPE);
 }
 
 /**
@@ -689,7 +686,7 @@ gserialized_is_poly(const GSERIALIZED* g)
  * the cache
  */
 static int
-MOBDB_point_in_polygon(const GSERIALIZED *geom1, const GSERIALIZED *geom2,
+meos_point_in_polygon(const GSERIALIZED *geom1, const GSERIALIZED *geom2,
   bool inter)
 {
   const GSERIALIZED *gpoly = gserialized_is_poly(geom1) ? geom1 : geom2;
@@ -739,7 +736,6 @@ MOBDB_point_in_polygon(const GSERIALIZED *geom1, const GSERIALIZED *geom2,
   }
 }
 
-#if MEOS
 GEOSGeometry *
 POSTGIS2GEOS(const GSERIALIZED *pglwgeom)
 {
@@ -776,27 +772,21 @@ GEOS2POSTGIS(GEOSGeom geom, char want3d)
 
   return result;
 }
-#else
-  extern GEOSGeometry *POSTGIS2GEOS(const GSERIALIZED *pglwgeom);
-  extern GSERIALIZED *GEOS2POSTGIS(GEOSGeom geom, char want3d);
-#endif /* MEOS */
 
 /**
  * @brief Transform the GSERIALIZED geometries into GEOSGeometry and
  * call the GEOS function passed as argument
  */
 static char
-MOBDB_call_geos(const GSERIALIZED *geom1, const GSERIALIZED *geom2,
+meos_call_geos2(const GSERIALIZED *geom1, const GSERIALIZED *geom2,
   char (*func)(const GEOSGeometry *g1, const GEOSGeometry *g2))
 {
   initGEOS(lwnotice, lwgeom_geos_error);
 
-  GEOSGeometry *g1;
-  GEOSGeometry *g2;
-  g1 = POSTGIS2GEOS(geom1);
+  GEOSGeometry *g1 = POSTGIS2GEOS(geom1);
   if (!g1)
     elog(ERROR, "First argument geometry could not be converted to GEOS");
-  g2 = POSTGIS2GEOS(geom2);
+  GEOSGeometry *g2 = POSTGIS2GEOS(geom2);
   if (!g2)
   {
     GEOSGeom_destroy(g1);
@@ -816,67 +806,19 @@ MOBDB_call_geos(const GSERIALIZED *geom1, const GSERIALIZED *geom2,
 
 /**
  * @brief Return true if the geometries intersect or the first contains
- * the other
- *
+ * the other, where the function called depend on the third argument
  * @param[in] geom1,geom2 Geometries
- * @param[in] inter: True when performing intersection, false for contains
- * @note PostGIS functions: Datum ST_Intersects(PG_FUNCTION_ARGS) and
- * Datum contains(PG_FUNCTION_ARGS)
+ * @param[in] rel Spatial relationship
+ * @note PostGIS functions: ST_Intersects(PG_FUNCTION_ARGS),
+ * contains(PG_FUNCTION_ARGS), touches(PG_FUNCTION_ARGS)
  */
 bool
-gserialized_inter_contains(const GSERIALIZED *geom1, const GSERIALIZED *geom2,
-  bool inter)
+gserialized_spatialrel(const GSERIALIZED *geom1, const GSERIALIZED *geom2,
+  spatialRel rel)
 {
-  GBOX box1, box2;
-
   ensure_same_srid(gserialized_get_srid(geom1), gserialized_get_srid(geom2));
 
   /* A.Intersects(Empty) == FALSE */
-  if ( gserialized_is_empty(geom1) || gserialized_is_empty(geom2) )
-      return false;
-
-  /*
-   * short-circuit 1: if geom2 bounding box does not overlap
-   * geom1 bounding box we can return FALSE.
-   */
-  if ( gserialized_get_gbox_p(geom1, &box1) &&
-          gserialized_get_gbox_p(geom2, &box2) )
-  {
-    if ( gbox_overlaps_2d(&box1, &box2) == LW_FALSE )
-      return false;
-  }
-
-  /*
-   * short-circuit 2: if the geoms are a point and a polygon,
-   * call the point_outside_polygon function.
-   */
-  if ((gserialized_is_point(geom1) && gserialized_is_poly(geom2)) || 
-      (gserialized_is_poly(geom1) && gserialized_is_point(geom2)))
-  {
-    int pip_result = MOBDB_point_in_polygon(geom1, geom2, inter);
-    return inter ?
-      (pip_result != -1) : /* not outside */
-      (pip_result == 1); /* inside */
-  }
-
-  /* Call GEOS function */
-  bool result = inter ?
-    (bool) MOBDB_call_geos(geom1, geom2, &GEOSIntersects) :
-    (bool) MOBDB_call_geos(geom1, geom2, &GEOSContains);
-
-  return result;
-}
-
-/**
- * @brief Return true if the geometries touch
- * @note PostGIS function: touches(PG_FUNCTION_ARGS)
-  */
-bool
-gserialized_touches(const GSERIALIZED *geom1, const GSERIALIZED *geom2)
-{
-  ensure_same_srid(gserialized_get_srid(geom1), gserialized_get_srid(geom2));
-
-  /* A.Touches(Empty) == FALSE */
   if ( gserialized_is_empty(geom1) || gserialized_is_empty(geom2) )
     return false;
 
@@ -885,19 +827,41 @@ gserialized_touches(const GSERIALIZED *geom1, const GSERIALIZED *geom2)
    * geom1 bounding box we can return FALSE.
    */
   GBOX box1, box2;
-  if ( gserialized_get_gbox_p(geom1, &box1) &&
-      gserialized_get_gbox_p(geom2, &box2) )
+  if (gserialized_get_gbox_p(geom1, &box1) &&
+      gserialized_get_gbox_p(geom2, &box2))
   {
-    if ( gbox_overlaps_2d(&box1, &box2) == LW_FALSE )
-    {
+    if (gbox_overlaps_2d(&box1, &box2) == LW_FALSE)
       return false;
-    }
+  }
+
+  /*
+   * short-circuit 2: if the geoms are a point and a polygon,
+   * call the point_outside_polygon function.
+   */
+  if ((rel == INTERSECTS || rel == CONTAINS) && (
+      (gserialized_is_point(geom1) && gserialized_is_poly(geom2)) ||
+      (gserialized_is_poly(geom1) && gserialized_is_point(geom2))))
+  {
+    int pip_result = meos_point_in_polygon(geom1, geom2, rel == INTERSECTS);
+    return (rel == INTERSECTS) ?
+      (pip_result != -1) : /* not outside */
+      (pip_result == 1); /* inside */
   }
 
   /* Call GEOS function */
-  bool result = (bool) MOBDB_call_geos(geom1, geom2, &GEOSTouches);
-
-  return result;
+  assert(rel == INTERSECTS || rel == CONTAINS || rel == TOUCHES);
+  switch (rel)
+  {
+    case INTERSECTS:
+      return (bool) meos_call_geos2(geom1, geom2, &GEOSIntersects);
+    case CONTAINS:
+      return (bool) meos_call_geos2(geom1, geom2, &GEOSContains);
+    case TOUCHES:
+      return (bool) meos_call_geos2(geom1, geom2, &GEOSTouches);
+    default:
+      /* keep compiler quiet */
+      return false;
+  }
 }
 
 /**
@@ -944,7 +908,7 @@ gserialized_relate_pattern(const GSERIALIZED *geom1, const GSERIALIZED *geom2,
 }
 
 /**
- * @brief Return true if the 3D geometries intersect
+ * @brief Return the intersection of the 3D geometries
  * @note PostGIS function: ST_Intersection(PG_FUNCTION_ARGS)
  * @note With respect to the original function we do not use the prec argument
  */
@@ -965,11 +929,11 @@ gserialized_intersection(const GSERIALIZED *geom1, const GSERIALIZED *geom2)
 }
 
 /**
- * @brief This is the final function for GeomUnion
- *       aggregate. Will have as input an array of Geometries.
- *       Will iteratively call GEOSUnion on the GEOS-converted
- *       versions of them and return PGIS-converted version back.
- *       Changing combination order *might* speed up performance.
+ * @brief This is the final function for GeomUnion aggregate.
+ * Will have as input an array of Geometries.
+ * Will iteratively call GEOSUnion on the GEOS-converted versions of them
+ * and return PGIS-converted version back.
+ * Changing combination order *might* speed up performance.
  * @note PostGIS function: pgis_union_geometry_array(PG_FUNCTION_ARGS)
  */
 GSERIALIZED *
@@ -983,7 +947,7 @@ gserialized_array_union(GSERIALIZED **gsarr, int nelems)
 
   bool is3d = false, gotsrid = false;
   int curgeom = 0;
-  int empty_type = 0;
+  uint8_t empty_type = 0;
   int32_t srid = SRID_UNKNOWN;
   GSERIALIZED *gser_out = NULL;
   GEOSGeometry *g = NULL;
@@ -1014,7 +978,7 @@ gserialized_array_union(GSERIALIZED **gsarr, int nelems)
     /* Don't include empties in the union */
     if (gserialized_is_empty(gsarr[i]))
     {
-      int gser_type = gserialized_get_type(gsarr[i]);
+      uint8_t gser_type = (uint8_t) gserialized_get_type(gsarr[i]);
       if (gser_type > empty_type)
         empty_type = gser_type;
     }
@@ -1066,6 +1030,64 @@ gserialized_array_union(GSERIALIZED **gsarr, int nelems)
     return NULL;
 
   return gser_out;
+}
+
+/**
+ * @brief Return the convex hull of the geometry
+ * @note PostGIS function: ST_ConvexHull(PG_FUNCTION_ARGS)
+ * @note With respect to the original function we do not use the prec argument
+ */
+GSERIALIZED *
+gserialized_convex_hull(const GSERIALIZED *geom)
+{
+  /* Empty.ConvexHull() == Empty */
+  if ( gserialized_is_empty(geom) )
+    return gserialized_copy(geom);
+
+  int32_t srid = gserialized_get_srid(geom);
+
+  initGEOS(lwnotice, lwgeom_geos_error);
+
+  GEOSGeometry *g1 = POSTGIS2GEOS(geom);
+  if (!g1)
+    elog(ERROR, "First argument geometry could not be converted to GEOS");
+
+  GEOSGeometry *g3 = GEOSConvexHull(g1);
+  GEOSGeom_destroy(g1);
+
+  if (!g3)
+    elog(ERROR,"GEOS convexhull() threw an error !");
+
+  GEOSSetSRID(g3, srid);
+
+  LWGEOM *lwout = GEOS2LWGEOM(g3, (uint8_t) gserialized_has_z(geom));
+  GEOSGeom_destroy(g3);
+
+  if (!lwout)
+  {
+    elog(ERROR, "convexhull() failed to convert GEOS geometry to LWGEOM");
+    return NULL; /* never get here */
+  }
+
+  /* Copy input bbox if any */
+  GBOX bbox;
+  if ( gserialized_get_gbox_p(geom, &bbox) )
+  {
+    /* Force the box to have the same dimensionality as the lwgeom */
+    bbox.flags = lwout->flags;
+    lwout->bbox = gbox_copy(&bbox);
+  }
+
+  GSERIALIZED *result = geo_serialize(lwout);
+  lwgeom_free(lwout);
+
+  if (!result)
+  {
+    elog(ERROR,"GEOS convexhull() threw an error !");
+    return NULL; /* never get here */
+  }
+
+  return result;
 }
 
 /*****************************************************************************
@@ -1213,7 +1235,6 @@ gserialized_geog_distance(const GSERIALIZED *g1, const GSERIALIZED *g2)
  * Functions adapted from lwgeom_inout.c
  *****************************************************************************/
 
-#if MEOS
 /**
 * Check the consistency of the metadata we want to enforce in the typmod:
 * srid, type and dimensionality. If things are inconsistent, shut down the query.
@@ -1249,10 +1270,8 @@ postgis_valid_typmod(GSERIALIZED *gser, int32_t typmod)
     LWPOINT *empty_point = lwpoint_construct_empty(geom_srid, geom_z, geom_m);
     geom_type = POINTTYPE;
     pfree(gser);
-    if ( gserialized_is_geodetic(gser) )
-      gser = geo_serialize(lwpoint_as_lwgeom(empty_point));
-    else
-      gser = geo_serialize(lwpoint_as_lwgeom(empty_point));
+    /* MEOS: use internal geo_serialize that copes with both geom and geog */
+    gser = geo_serialize(lwpoint_as_lwgeom(empty_point));
   }
 
   /* Typmod has a preference for SRID, but geometry does not? Harmonize the geometry SRID. */
@@ -1308,9 +1327,6 @@ postgis_valid_typmod(GSERIALIZED *gser, int32_t typmod)
 
   return gser;
 }
-#else
-  extern GSERIALIZED *postgis_valid_typmod(GSERIALIZED *gser, int32_t typmod);
-#endif /* MEOS */
 
 /**
  * @ingroup libmeos_pgis_types
@@ -1342,15 +1358,15 @@ gserialized_in(char *input, int32 geom_typmod)
   }
 
   /* Starts with "SRID=" */
-  if( strncasecmp(str,"SRID=",5) == 0 )
+  if (pg_strncasecmp(str,"SRID=",5) == 0)
   {
     /* Roll forward to semi-colon */
     char *tmp = str;
-    while ( tmp && *tmp != ';' )
+    while (tmp && *tmp != ';')
       tmp++;
 
     /* Check next character to see if we have WKB  */
-    if ( tmp && *(tmp+1) == '0' )
+    if (tmp && *(tmp+1) == '0')
     {
       /* Null terminate the SRID= string */
       *tmp = '\0';
@@ -1471,7 +1487,7 @@ gserialized_from_text(char *wkt, int srid)
 
 /**
  * @ingroup libmeos_pgis_types
- * @brief Return the WKT representation (and optionally a SRID) of a geometry 
+ * @brief Return the WKT representation (and optionally a SRID) of a geometry
  * @note This is a a stricter version of geometry_in, where we refuse to accept
  * (HEX)WKB or EWKT.
  * @note PostGIS function: LWGEOM_asText(PG_FUNCTION_ARGS)
@@ -1485,6 +1501,21 @@ gserialized_as_text(const GSERIALIZED *geom, int precision)
 
 /**
  * @ingroup libmeos_pgis_types
+ * @brief Return the EWKT representation (and optionally a SRID) of a geometry
+ * @note This is a a stricter version of geometry_in, where we refuse to accept
+ * (HEX)WKB or EWKT.
+ * @note PostGIS function: LWGEOM_asEWKT(PG_FUNCTION_ARGS)
+ */
+char *
+gserialized_as_ewkt(const GSERIALIZED *geom, int precision)
+{
+  LWGEOM *lwgeom = lwgeom_from_gserialized(geom);
+  return lwgeom_to_wkt(lwgeom, WKT_EXTENDED, precision, NULL);
+}
+
+
+/**
+ * @ingroup libmeos_pgis_types
  * @brief Return a geometry from its WKT representation
  * @note This is a a stricter version of geometry_in, where we refuse to accept
  * (HEX)WKB or EWKT.
@@ -1495,7 +1526,7 @@ gserialized_from_hexewkb(const char *wkt)
 {
   return gserialized_in((char *) wkt, -1);
 }
-  
+
 /**
  * @ingroup libmeos_pgis_types
  * @brief Return the WKB representation of a geometry in hex-encoded ASCII.
@@ -1661,13 +1692,16 @@ gserialized_as_geojson(const GSERIALIZED *geom, int option, int precision,
   pfree(txt);
   return result;
 }
+#endif /* MEOS */
 
 /**
  * @ingroup libmeos_pgis_types
  * @brief Return true if the geometries are the same
+ * @note The `pgis_` prefix is needed since there is a PostGIS function
+ * `gserialized_same` in file `gserialized_gist_nd.c`
  */
 bool
-gserialized_same(const GSERIALIZED *geom1, const GSERIALIZED *geom2)
+pgis_gserialized_same(const GSERIALIZED *geom1, const GSERIALIZED *geom2)
 {
   LWGEOM *lwgeom1 = lwgeom_from_gserialized(geom1);
   LWGEOM *lwgeom2 = lwgeom_from_gserialized(geom2);
@@ -1675,13 +1709,11 @@ gserialized_same(const GSERIALIZED *geom1, const GSERIALIZED *geom2)
   pfree(lwgeom1); pfree(lwgeom2);
   return (result == LW_TRUE);
 }
-#endif /* MEOS */
 
 /*****************************************************************************
  * Functions adapted from geography_inout.c
  *****************************************************************************/
 
-#if MEOS
 /**
 * The geography type only support POINT, LINESTRING, POLYGON, MULTI* variants
 * of same, and GEOMETRYCOLLECTION. If the input type is not one of those, shut
@@ -1733,11 +1765,6 @@ gserialized_geography_from_lwgeom(LWGEOM *lwgeom, int32 geog_typmod)
 
   return g_ser;
 }
-#else
-  extern void geography_valid_type(uint8_t type);
-  extern GSERIALIZED *gserialized_geography_from_lwgeom(LWGEOM *lwgeom,
-    int32 geog_typmod);
-#endif /* MEOS */
 
 /**
  * @brief Get a geography from in string
@@ -1826,6 +1853,7 @@ pgis_geography_from_binary(const char *wkb_bytea)
 
 /*****************************************************************************/
 
+#if 0 /* not used  */
 /**
  * @brief Get a geography from a geometry
  * @note PostGIS function: geography_from_geometry(PG_FUNCTION_ARGS)
@@ -1885,6 +1913,7 @@ gserialized_geom_from_geog(GSERIALIZED *geom)
   lwgeom_free(lwgeom);
   return result;
 }
+#endif /* not used  */
 
 /*****************************************************************************
  * Functions adapted from lwgeom_functions_analytic.c
@@ -1897,7 +1926,7 @@ gserialized_geom_from_geog(GSERIALIZED *geom)
  */
 LWGEOM *
 lwgeom_line_interpolate_point(LWGEOM *lwgeom, double fraction, int32_t srid,
-  int repeat)
+  char repeat)
 {
   assert(fraction >= 0 && fraction <= 1);
   assert(lwgeom->type == LINETYPE);
@@ -1917,7 +1946,7 @@ lwgeom_line_interpolate_point(LWGEOM *lwgeom, double fraction, int32_t srid,
  */
 GSERIALIZED *
 gserialized_line_interpolate_point(GSERIALIZED *gser, double distance_fraction,
-  int repeat)
+  char repeat)
 {
   GSERIALIZED *result;
   int32_t srid = gserialized_get_srid(gser);
@@ -1957,7 +1986,7 @@ gserialized_line_substring(GSERIALIZED *geom, double from, double to)
   LWGEOM *olwgeom;
   POINTARRAY *opa;
   GSERIALIZED *ret;
-  int type = gserialized_get_type(geom);
+  uint8_t type = (uint8_t) gserialized_get_type(geom);
 
   if ( from < 0 || from > 1 )
   {
@@ -2130,7 +2159,7 @@ gserialized_line_locate_point(GSERIALIZED *geom1, GSERIALIZED *geom2)
 /**
  * PointN(GEOMETRY,INTEGER) -- find the first linestring in GEOMETRY,
  * @return the point at index INTEGER (1 is 1st point).  Return NULL if
- *     there is no LINESTRING(..) in GEOMETRY or INTEGER is out of bounds.
+ * there is no LINESTRING(..) in GEOMETRY or INTEGER is out of bounds.
  */
 GSERIALIZED *
 gserialized_pointn_linestring(const GSERIALIZED *geom, int where)

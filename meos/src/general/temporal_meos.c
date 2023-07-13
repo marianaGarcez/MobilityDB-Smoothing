@@ -1,12 +1,12 @@
 /*****************************************************************************
  *
  * This MobilityDB code is provided under The PostgreSQL License.
- * Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+ * Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
  * contributors
  *
  * MobilityDB includes portions of PostGIS version 3 source code released
  * under the GNU General Public License (GPLv2 or later).
- * Copyright (c) 2001-2022, PostGIS contributors
+ * Copyright (c) 2001-2023, PostGIS contributors
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written
@@ -23,11 +23,12 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
  * AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
- * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  *****************************************************************************/
 
 /**
+ * @file
  * @brief Basic functions for temporal types of any subtype.
  */
 
@@ -35,7 +36,7 @@
 
 /* C */
 #include <assert.h>
-/* MobilityDB */
+/* MEOS */
 #include <meos.h>
 #include <meos_internal.h>
 
@@ -166,174 +167,25 @@ tpoint_minus_value(const Temporal *temp, GSERIALIZED *gs)
 /*****************************************************************************/
 
 /**
- * @brief Restrict a temporal boolean to (the complement of) an array of booleans.
- * @sqlfunc atValues()
- */
-static Temporal *
-tbool_restrict_values(const Temporal *temp, bool *values, int count, bool atfunc)
-{
-  Datum *datumarr = palloc(sizeof(Datum) * count);
-  for (int i = 0; i < count; i ++)
-    datumarr[i] = BoolGetDatum(values[i]);
-  Temporal *result = temporal_restrict_values(temp, datumarr, count, atfunc);
-  pfree(datumarr);
-  return result;
-}
-
-/**
  * @ingroup libmeos_temporal_restrict
- * @brief Restrict a temporal boolean to an array of booleans.
+ * @brief Restrict a temporal value to a set of values.
  * @sqlfunc atValues()
  */
 Temporal *
-tbool_at_values(const Temporal *temp, bool *values, int count)
+temporal_at_values(const Temporal *temp, const Set *set)
 {
-  return tbool_restrict_values(temp, values, count, REST_AT);
+  return temporal_restrict_values(temp, set, REST_AT);
 }
 
 /**
  * @ingroup libmeos_temporal_restrict
- * @brief Restrict a temporal boolean to the complement of an array of booleans.
+ * @brief Restrict a temporal value to the complement of a set of values.
  * @sqlfunc minusValues()
  */
 Temporal *
-tbool_minus_values(const Temporal *temp, bool *values, int count)
+temporal_minus_values(const Temporal *temp, const Set *set)
 {
-  return tbool_restrict_values(temp, values, count, REST_MINUS);
-}
-
-/**
- * @brief Restrict a temporal integer to (the complement of) an array of integers.
- * @sqlfunc atValues()
- */
-static Temporal *
-tint_restrict_values(const Temporal *temp, int *values, int count, bool atfunc)
-{
-  Datum *datumarr = palloc(sizeof(Datum) * count);
-  for (int i = 0; i < count; i ++)
-    datumarr[i] = Int32GetDatum(values[i]);
-  Temporal *result = temporal_restrict_values(temp, datumarr, count, atfunc);
-  pfree(datumarr);
-  return result;
-}
-
-/**
- * @ingroup libmeos_temporal_restrict
- * @brief Restrict a temporal integer to an array of integers.
- * @sqlfunc atValues()
- */
-Temporal *
-tint_at_values(const Temporal *temp, int *values, int count)
-{
-  return tint_restrict_values(temp, values, count, REST_AT);
-}
-
-/**
- * @ingroup libmeos_temporal_restrict
- * @brief Restrict a temporal integer to the complement of an array of integers.
- * @sqlfunc minusValues()
- */
-Temporal *
-tint_minus_values(const Temporal *temp, int *values, int count)
-{
-  return tint_restrict_values(temp, values, count, REST_MINUS);
-}
-
-/**
- * @brief Restrict a temporal float to (the complement of) an array of floats.
- * @sqlfunc atValues()
- */
-static Temporal *
-tfloat_restrict_values(const Temporal *temp, double *values, int count, bool atfunc)
-{
-  Datum *datumarr = palloc(sizeof(Datum) * count);
-  for (int i = 0; i < count; i ++)
-    datumarr[i] = Float8GetDatum(values[i]);
-  Temporal *result = temporal_restrict_values(temp, datumarr, count, atfunc);
-  pfree(datumarr);
-  return result;
-}
-
-/**
- * @ingroup libmeos_temporal_restrict
- * @brief Restrict a temporal float to an array of floats.
- * @sqlfunc atValues()
- */
-Temporal *
-tfloat_at_values(const Temporal *temp, double *values, int count)
-{
-  return tfloat_restrict_values(temp, values, count, REST_AT);
-}
-
-/**
- * @ingroup libmeos_temporal_restrict
- * @brief Restrict a temporal float to the complement of an array of floats.
- * @sqlfunc minusValues()
- */
-Temporal *
-tfloat_minus_values(const Temporal *temp, double *values, int count)
-{
-  return tfloat_restrict_values(temp, values, count, REST_MINUS);
-}
-
-/**
- * @brief Restrict a temporal text to (the complement of) an array of texts.
- * @sqlfunc atValues()
- */
-static Temporal *
-temporal_restrict_values_ref(const Temporal *temp, void **values, int count,
-  bool atfunc)
-{
-  Datum *datumarr = palloc(sizeof(Datum) * count);
-  for (int i = 0; i < count; i ++)
-    datumarr[i] = PointerGetDatum(values[i]);
-  Temporal *result = temporal_restrict_values(temp, datumarr, count, atfunc);
-  pfree(datumarr);
-  return result;
-}
-
-/**
- * @ingroup libmeos_temporal_restrict
- * @brief Restrict a temporal text to an array of texts.
- * @sqlfunc atValues()
- */
-Temporal *
-ttext_at_values(const Temporal *temp, text **values, int count)
-{
-  return temporal_restrict_values_ref(temp, (void **) values, count, REST_AT);
-}
-
-/**
- * @ingroup libmeos_temporal_restrict
- * @brief Restrict a temporal text to the complement of an array of texts.
- * @sqlfunc minusValues()
- */
-Temporal *
-ttext_minus_values(const Temporal *temp, text **values, int count)
-{
-  return temporal_restrict_values_ref(temp, (void **) values, count, REST_MINUS);
-}
-
-/**
- * @ingroup libmeos_temporal_restrict
- * @brief Restrict a temporal point to an array of points.
- * @sqlfunc atValues()
- */
-Temporal *
-tpoint_at_values(const Temporal *temp, GSERIALIZED **values, int count)
-{
-  return temporal_restrict_values_ref(temp, (void **) values, count, REST_AT);
-}
-
-/**
- * @ingroup libmeos_temporal_restrict
- * @brief Restrict a temporal point to the complement of an array of points.
- * @sqlfunc minusValues()
- */
-Temporal *
-tpoint_minus_values(const Temporal *temp, GSERIALIZED **values, int count)
-{
-  return temporal_restrict_values_ref(temp, (void **) values, count, REST_MINUS);
+  return temporal_restrict_values(temp, set, REST_MINUS);
 }
 
 /*****************************************************************************/
@@ -416,7 +268,7 @@ tpoint_value_at_timestamp(const Temporal *temp, TimestampTz t, bool strict,
   GSERIALIZED **value)
 {
   assert(value != NULL);
-  assert(temp->temptype == T_TGEOMPOINT || temp->temptype == T_TGEOGPOINT);
+  assert(tgeo_type(temp->temptype));
   Datum res;
   bool result = temporal_value_at_timestamp(temp, t, strict, &res);
   *value = DatumGetGserializedP(res);
@@ -505,9 +357,9 @@ tnumber_minus_span(const Temporal *temp, const Span *span)
  * @sqlfunc minusSpans()
  */
 Temporal *
-tnumber_at_spans(const Temporal *temp, Span **spans, int count)
+tnumber_at_spanset(const Temporal *temp, const SpanSet *ss)
 {
-  Temporal *result = tnumber_restrict_spans(temp, spans, count, REST_AT);
+  Temporal *result = tnumber_restrict_spanset(temp, ss, REST_AT);
   return result;
 }
 
@@ -518,9 +370,9 @@ tnumber_at_spans(const Temporal *temp, Span **spans, int count)
  * @sqlfunc minusSpans()
  */
 Temporal *
-tnumber_minus_spans(const Temporal *temp, Span **spans, int count)
+tnumber_minus_spanset(const Temporal *temp, const SpanSet *ss)
 {
-  Temporal *result = tnumber_restrict_spans(temp, spans, count, REST_AT);
+  Temporal *result = tnumber_restrict_spanset(temp, ss, REST_AT);
   return result;
 }
 
@@ -529,7 +381,7 @@ tnumber_minus_spans(const Temporal *temp, Span **spans, int count)
 /**
  * @ingroup libmeos_temporal_restrict
  * @brief Restrict a temporal value to a timestamp
- * @sqlfunc atTimestamp()
+ * @sqlfunc atTime()
  */
 Temporal *
 temporal_at_timestamp(const Temporal *temp, TimestampTz t)
@@ -541,7 +393,7 @@ temporal_at_timestamp(const Temporal *temp, TimestampTz t)
 /**
  * @ingroup libmeos_temporal_restrict
  * @brief Restrict a temporal value to the complement of a timestamp
- * @sqlfunc minusTimestamp()
+ * @sqlfunc minusTime()
  */
 Temporal *
 temporal_minus_timestamp(const Temporal *temp, TimestampTz t)
@@ -553,10 +405,10 @@ temporal_minus_timestamp(const Temporal *temp, TimestampTz t)
 /**
  * @ingroup libmeos_temporal_restrict
  * @brief Restrict a temporal value to a timestamp set
- * @sqlfunc atTimestampSet()
+ * @sqlfunc atTime()
  */
 Temporal *
-temporal_at_timestampset(const Temporal *temp, const TimestampSet *ts)
+temporal_at_timestampset(const Temporal *temp, const Set *ts)
 {
   Temporal *result = temporal_restrict_timestampset(temp, ts, REST_AT);
   return result;
@@ -565,10 +417,10 @@ temporal_at_timestampset(const Temporal *temp, const TimestampSet *ts)
 /**
  * @ingroup libmeos_temporal_restrict
  * @brief Restrict a temporal value to the complement of a timestamp set
- * @sqlfunc minusTimestampSet()
+ * @sqlfunc minusTime()
  */
 Temporal *
-temporal_minus_timestampset(const Temporal *temp, const TimestampSet *ts)
+temporal_minus_timestampset(const Temporal *temp, const Set *ts)
 {
   Temporal *result = temporal_restrict_timestampset(temp, ts, REST_MINUS);
   return result;
@@ -577,10 +429,10 @@ temporal_minus_timestampset(const Temporal *temp, const TimestampSet *ts)
 /**
  * @ingroup libmeos_temporal_restrict
  * @brief Restrict a temporal value to a period
- * @sqlfunc atPeriod()
+ * @sqlfunc atTime()
  */
 Temporal *
-temporal_at_period(const Temporal *temp, const Period *p)
+temporal_at_period(const Temporal *temp, const Span *p)
 {
   Temporal *result = temporal_restrict_period(temp, p, REST_AT);
   return result;
@@ -589,10 +441,10 @@ temporal_at_period(const Temporal *temp, const Period *p)
 /**
  * @ingroup libmeos_temporal_restrict
  * @brief Restrict a temporal value to the complement of a period
- * @sqlfunc minusPeriod()
+ * @sqlfunc minusTime()
  */
 Temporal *
-temporal_minus_period(const Temporal *temp, const Period *p)
+temporal_minus_period(const Temporal *temp, const Span *p)
 {
   Temporal *result = temporal_restrict_period(temp, p, REST_MINUS);
   return result;
@@ -601,10 +453,10 @@ temporal_minus_period(const Temporal *temp, const Period *p)
 /**
  * @ingroup libmeos_temporal_restrict
  * @brief Restrict a temporal value to a period set
- * @sqlfunc atPeriodSet()
+ * @sqlfunc atTime()
  */
 Temporal *
-temporal_at_periodset(const Temporal *temp, const PeriodSet *ps)
+temporal_at_periodset(const Temporal *temp, const SpanSet *ps)
 {
   Temporal *result = temporal_restrict_periodset(temp, ps, REST_AT);
   return result;
@@ -613,10 +465,10 @@ temporal_at_periodset(const Temporal *temp, const PeriodSet *ps)
 /**
  * @ingroup libmeos_temporal_restrict
  * @brief Restrict a temporal value to the complement of a period set
- * @sqlfunc minusPeriodSet()
+ * @sqlfunc minusTime()
  */
 Temporal *
-temporal_minus_periodset(const Temporal *temp, const PeriodSet *ps)
+temporal_minus_periodset(const Temporal *temp, const SpanSet *ps)
 {
   Temporal *result = temporal_restrict_periodset(temp, ps, REST_MINUS);
   return result;

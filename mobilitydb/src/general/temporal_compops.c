@@ -1,12 +1,12 @@
 /*****************************************************************************
  *
  * This MobilityDB code is provided under The PostgreSQL License.
- * Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+ * Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
  * contributors
  *
  * MobilityDB includes portions of PostGIS version 3 source code released
  * under the GNU General Public License (GPLv2 or later).
- * Copyright (c) 2001-2022, PostGIS contributors
+ * Copyright (c) 2001-2023, PostGIS contributors
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written
@@ -23,11 +23,12 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
  * AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
- * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  *****************************************************************************/
 
 /**
+ * @file
  * @brief Temporal comparison operators: #=, #<>, #<, #>, #<=, #>=.
  */
 
@@ -36,10 +37,10 @@
 /* MEOS */
 #include <meos.h>
 #include <meos_internal.h>
-#include "general/temporal_util.h"
+#include "general/type_util.h"
 /* MobilityDB */
+#include "pg_general/meos_catalog.h"
 #include "pg_general/temporal.h"
-#include "pg_general/temporal_catalog.h"
 
 /*****************************************************************************
  * Generic functions
@@ -51,14 +52,16 @@
  */
 static Datum
 tcomp_base_temporal_ext(FunctionCallInfo fcinfo,
-  Datum (*func)(Datum, Datum, mobdbType, mobdbType))
+  Datum (*func)(Datum, Datum, meosType, meosType))
 {
+  if (PG_ARGISNULL(0) || PG_ARGISNULL(1))
+    PG_RETURN_NULL();
   Datum value = PG_GETARG_ANYDATUM(0);
   Temporal *temp = PG_GETARG_TEMPORAL_P(1);
-  mobdbType basetype = oid_type(get_fn_expr_argtype(fcinfo->flinfo, 0));
+  meosType basetype = oid_type(get_fn_expr_argtype(fcinfo->flinfo, 0));
   bool restr = false;
   Datum atvalue = (Datum) NULL;
-  if (PG_NARGS() == 3)
+  if (PG_NARGS() > 2 && ! PG_ARGISNULL(2))
   {
     atvalue = PG_GETARG_DATUM(2);
     restr = true;
@@ -73,7 +76,7 @@ tcomp_base_temporal_ext(FunctionCallInfo fcinfo,
   }
   DATUM_FREE_IF_COPY(value, basetype, 0);
   PG_FREE_IF_COPY(temp, 1);
-  if (result == NULL)
+  if (! result)
     PG_RETURN_NULL();
   PG_RETURN_POINTER(result);
 }
@@ -84,14 +87,16 @@ tcomp_base_temporal_ext(FunctionCallInfo fcinfo,
  */
 Datum
 tcomp_temporal_base_ext(FunctionCallInfo fcinfo,
-  Datum (*func)(Datum, Datum, mobdbType, mobdbType))
+  Datum (*func)(Datum, Datum, meosType, meosType))
 {
+  if (PG_ARGISNULL(0) || PG_ARGISNULL(1))
+    PG_RETURN_NULL();
   Temporal *temp = PG_GETARG_TEMPORAL_P(0);
   Datum value = PG_GETARG_ANYDATUM(1);
-  mobdbType basetype = oid_type(get_fn_expr_argtype(fcinfo->flinfo, 1));
+  meosType basetype = oid_type(get_fn_expr_argtype(fcinfo->flinfo, 1));
   bool restr = false;
   Datum atvalue = (Datum) NULL;
-  if (PG_NARGS() == 3)
+  if (PG_NARGS() > 2 && ! PG_ARGISNULL(2))
   {
     atvalue = PG_GETARG_DATUM(2);
     restr = true;
@@ -107,7 +112,7 @@ tcomp_temporal_base_ext(FunctionCallInfo fcinfo,
   }
   PG_FREE_IF_COPY(temp, 0);
   DATUM_FREE_IF_COPY(value, basetype, 1);
-  if (result == NULL)
+  if (! result)
     PG_RETURN_NULL();
   PG_RETURN_POINTER(result);
 }
@@ -117,13 +122,15 @@ tcomp_temporal_base_ext(FunctionCallInfo fcinfo,
  */
 Datum
 tcomp_temporal_temporal_ext(FunctionCallInfo fcinfo,
-  Datum (*func)(Datum, Datum, mobdbType, mobdbType))
+  Datum (*func)(Datum, Datum, meosType, meosType))
 {
+  if (PG_ARGISNULL(0) || PG_ARGISNULL(1))
+    PG_RETURN_NULL();
   Temporal *temp1 = PG_GETARG_TEMPORAL_P(0);
   Temporal *temp2 = PG_GETARG_TEMPORAL_P(1);
   bool restr = false;
   Datum atvalue = (Datum) NULL;
-  if (PG_NARGS() == 3)
+  if (PG_NARGS() > 2 && ! PG_ARGISNULL(2))
   {
     atvalue = PG_GETARG_DATUM(2);
     restr = true;
@@ -138,7 +145,7 @@ tcomp_temporal_temporal_ext(FunctionCallInfo fcinfo,
   }
   PG_FREE_IF_COPY(temp1, 0);
   PG_FREE_IF_COPY(temp2, 1);
-  if (result == NULL)
+  if (! result)
     PG_RETURN_NULL();
   PG_RETURN_POINTER(result);
 }
@@ -147,6 +154,7 @@ tcomp_temporal_temporal_ext(FunctionCallInfo fcinfo,
  * Temporal eq
  *****************************************************************************/
 
+PGDLLEXPORT Datum Teq_base_temporal(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Teq_base_temporal);
 /**
  * @ingroup mobilitydb_temporal_comp
@@ -154,12 +162,13 @@ PG_FUNCTION_INFO_V1(Teq_base_temporal);
  * @sqlfunc temporal_teq()
  * @sqlop @p #=
  */
-PGDLLEXPORT Datum
+Datum
 Teq_base_temporal(PG_FUNCTION_ARGS)
 {
   return tcomp_base_temporal_ext(fcinfo, &datum2_eq2);
 }
 
+PGDLLEXPORT Datum Teq_temporal_base(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Teq_temporal_base);
 /**
  * @ingroup mobilitydb_temporal_comp
@@ -167,12 +176,13 @@ PG_FUNCTION_INFO_V1(Teq_temporal_base);
  * @sqlfunc temporal_teq()
  * @sqlop @p #=
  */
-PGDLLEXPORT Datum
+Datum
 Teq_temporal_base(PG_FUNCTION_ARGS)
 {
   return tcomp_temporal_base_ext(fcinfo, &datum2_eq2);
 }
 
+PGDLLEXPORT Datum Teq_temporal_temporal(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Teq_temporal_temporal);
 /**
  * @ingroup mobilitydb_temporal_comp
@@ -180,7 +190,7 @@ PG_FUNCTION_INFO_V1(Teq_temporal_temporal);
  * @sqlfunc temporal_teq()
  * @sqlop @p #=
  */
-PGDLLEXPORT Datum
+Datum
 Teq_temporal_temporal(PG_FUNCTION_ARGS)
 {
   return tcomp_temporal_temporal_ext(fcinfo, &datum2_eq2);
@@ -190,6 +200,7 @@ Teq_temporal_temporal(PG_FUNCTION_ARGS)
  * Temporal ne
  *****************************************************************************/
 
+PGDLLEXPORT Datum Tne_base_temporal(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Tne_base_temporal);
 /**
  * @ingroup mobilitydb_temporal_comp
@@ -197,12 +208,13 @@ PG_FUNCTION_INFO_V1(Tne_base_temporal);
  * @sqlfunc temporal_tne()
  * @sqlop @p #<>
  */
-PGDLLEXPORT Datum
+Datum
 Tne_base_temporal(PG_FUNCTION_ARGS)
 {
   return tcomp_base_temporal_ext(fcinfo, &datum2_ne2);
 }
 
+PGDLLEXPORT Datum Tne_temporal_base(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Tne_temporal_base);
 /**
  * @ingroup mobilitydb_temporal_comp
@@ -210,12 +222,13 @@ PG_FUNCTION_INFO_V1(Tne_temporal_base);
  * @sqlfunc temporal_tne()
  * @sqlop @p #<>
  */
-PGDLLEXPORT Datum
+Datum
 Tne_temporal_base(PG_FUNCTION_ARGS)
 {
   return tcomp_temporal_base_ext(fcinfo, &datum2_ne2);
 }
 
+PGDLLEXPORT Datum Tne_temporal_temporal(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Tne_temporal_temporal);
 /**
  * @ingroup mobilitydb_temporal_comp
@@ -223,7 +236,7 @@ PG_FUNCTION_INFO_V1(Tne_temporal_temporal);
  * @sqlfunc temporal_tne()
  * @sqlop @p #<>
  */
-PGDLLEXPORT Datum
+Datum
 Tne_temporal_temporal(PG_FUNCTION_ARGS)
 {
   return tcomp_temporal_temporal_ext(fcinfo, &datum2_ne2);
@@ -233,6 +246,7 @@ Tne_temporal_temporal(PG_FUNCTION_ARGS)
  * Temporal lt
  *****************************************************************************/
 
+PGDLLEXPORT Datum Tlt_base_temporal(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Tlt_base_temporal);
 /**
  * @ingroup mobilitydb_temporal_comp
@@ -240,12 +254,13 @@ PG_FUNCTION_INFO_V1(Tlt_base_temporal);
  * @sqlfunc temporal_tlt()
  * @sqlop @p #<
  */
-PGDLLEXPORT Datum
+Datum
 Tlt_base_temporal(PG_FUNCTION_ARGS)
 {
   return tcomp_base_temporal_ext(fcinfo, &datum2_lt2);
 }
 
+PGDLLEXPORT Datum Tlt_temporal_base(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Tlt_temporal_base);
 /**
  * @ingroup mobilitydb_temporal_comp
@@ -253,12 +268,13 @@ PG_FUNCTION_INFO_V1(Tlt_temporal_base);
  * @sqlfunc temporal_tlt()
  * @sqlop @p #<
  */
-PGDLLEXPORT Datum
+Datum
 Tlt_temporal_base(PG_FUNCTION_ARGS)
 {
   return tcomp_temporal_base_ext(fcinfo, &datum2_lt2);
 }
 
+PGDLLEXPORT Datum Tlt_temporal_temporal(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Tlt_temporal_temporal);
 /**
  * @ingroup mobilitydb_temporal_comp
@@ -266,7 +282,7 @@ PG_FUNCTION_INFO_V1(Tlt_temporal_temporal);
  * @sqlfunc temporal_tlt()
  * @sqlop @p #<
  */
-PGDLLEXPORT Datum
+Datum
 Tlt_temporal_temporal(PG_FUNCTION_ARGS)
 {
   return tcomp_temporal_temporal_ext(fcinfo, &datum2_lt2);
@@ -276,6 +292,7 @@ Tlt_temporal_temporal(PG_FUNCTION_ARGS)
  * Temporal le
  *****************************************************************************/
 
+PGDLLEXPORT Datum Tle_base_temporal(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Tle_base_temporal);
 /**
  * @ingroup mobilitydb_temporal_comp
@@ -283,12 +300,13 @@ PG_FUNCTION_INFO_V1(Tle_base_temporal);
  * @sqlfunc temporal_tle()
  * @sqlop @p #<=
  */
-PGDLLEXPORT Datum
+Datum
 Tle_base_temporal(PG_FUNCTION_ARGS)
 {
   return tcomp_base_temporal_ext(fcinfo, &datum2_le2);
 }
 
+PGDLLEXPORT Datum Tle_temporal_base(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Tle_temporal_base);
 /**
  * @ingroup mobilitydb_temporal_comp
@@ -296,12 +314,13 @@ PG_FUNCTION_INFO_V1(Tle_temporal_base);
  * @sqlfunc temporal_tle()
  * @sqlop @p #<=
  */
-PGDLLEXPORT Datum
+Datum
 Tle_temporal_base(PG_FUNCTION_ARGS)
 {
   return tcomp_temporal_base_ext(fcinfo, &datum2_le2);
 }
 
+PGDLLEXPORT Datum Tle_temporal_temporal(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Tle_temporal_temporal);
 /**
  * @ingroup mobilitydb_temporal_comp
@@ -309,7 +328,7 @@ PG_FUNCTION_INFO_V1(Tle_temporal_temporal);
  * @sqlfunc temporal_tle()
  * @sqlop @p #<=
  */
-PGDLLEXPORT Datum
+Datum
 Tle_temporal_temporal(PG_FUNCTION_ARGS)
 {
   return tcomp_temporal_temporal_ext(fcinfo, &datum2_le2);
@@ -319,6 +338,7 @@ Tle_temporal_temporal(PG_FUNCTION_ARGS)
  * Temporal gt
  *****************************************************************************/
 
+PGDLLEXPORT Datum Tgt_base_temporal(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Tgt_base_temporal);
 /**
  * @ingroup mobilitydb_temporal_comp
@@ -326,12 +346,13 @@ PG_FUNCTION_INFO_V1(Tgt_base_temporal);
  * @sqlfunc temporal_tgt()
  * @sqlop @p #>
  */
-PGDLLEXPORT Datum
+Datum
 Tgt_base_temporal(PG_FUNCTION_ARGS)
 {
   return tcomp_base_temporal_ext(fcinfo, &datum2_gt2);
 }
 
+PGDLLEXPORT Datum Tgt_temporal_base(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Tgt_temporal_base);
 /**
  * @ingroup mobilitydb_temporal_comp
@@ -339,12 +360,13 @@ PG_FUNCTION_INFO_V1(Tgt_temporal_base);
  * @sqlfunc temporal_tgt()
  * @sqlop @p #>
  */
-PGDLLEXPORT Datum
+Datum
 Tgt_temporal_base(PG_FUNCTION_ARGS)
 {
   return tcomp_temporal_base_ext(fcinfo, &datum2_gt2);
 }
 
+PGDLLEXPORT Datum Tgt_temporal_temporal(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Tgt_temporal_temporal);
 /**
  * @ingroup mobilitydb_temporal_comp
@@ -352,7 +374,7 @@ PG_FUNCTION_INFO_V1(Tgt_temporal_temporal);
  * @sqlfunc temporal_tgt()
  * @sqlop @p #>
  */
-PGDLLEXPORT Datum
+Datum
 Tgt_temporal_temporal(PG_FUNCTION_ARGS)
 {
   return tcomp_temporal_temporal_ext(fcinfo, &datum2_gt2);
@@ -362,6 +384,7 @@ Tgt_temporal_temporal(PG_FUNCTION_ARGS)
  * Temporal ge
  *****************************************************************************/
 
+PGDLLEXPORT Datum Tge_base_temporal(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Tge_base_temporal);
 /**
  * @ingroup mobilitydb_temporal_comp
@@ -369,12 +392,13 @@ PG_FUNCTION_INFO_V1(Tge_base_temporal);
  * @sqlfunc temporal_tge()
  * @sqlop @p #>=
  */
-PGDLLEXPORT Datum
+Datum
 Tge_base_temporal(PG_FUNCTION_ARGS)
 {
   return tcomp_base_temporal_ext(fcinfo, &datum2_ge2);
 }
 
+PGDLLEXPORT Datum Tge_temporal_base(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Tge_temporal_base);
 /**
  * @ingroup mobilitydb_temporal_comp
@@ -382,12 +406,13 @@ PG_FUNCTION_INFO_V1(Tge_temporal_base);
  * @sqlfunc temporal_tge()
  * @sqlop @p #>=
  */
-PGDLLEXPORT Datum
+Datum
 Tge_temporal_base(PG_FUNCTION_ARGS)
 {
   return tcomp_temporal_base_ext(fcinfo, &datum2_ge2);
 }
 
+PGDLLEXPORT Datum Tge_temporal_temporal(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Tge_temporal_temporal);
 /**
  * @ingroup mobilitydb_temporal_comp
@@ -395,7 +420,7 @@ PG_FUNCTION_INFO_V1(Tge_temporal_temporal);
  * @sqlfunc temporal_tge()
  * @sqlop @p #>=
  */
-PGDLLEXPORT Datum
+Datum
 Tge_temporal_temporal(PG_FUNCTION_ARGS)
 {
   return tcomp_temporal_temporal_ext(fcinfo, &datum2_ge2);

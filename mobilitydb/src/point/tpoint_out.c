@@ -1,12 +1,12 @@
 /*****************************************************************************
  *
  * This MobilityDB code is provided under The PostgreSQL License.
- * Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+ * Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
  * contributors
  *
  * MobilityDB includes portions of PostGIS version 3 source code released
  * under the GNU General Public License (GPLv2 or later).
- * Copyright (c) 2001-2022, PostGIS contributors
+ * Copyright (c) 2001-2023, PostGIS contributors
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written
@@ -23,11 +23,12 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
  * AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
- * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  *****************************************************************************/
 
 /**
+ * @file
  * @brief Output of temporal points in WKT, EWKT, and MF-JSON format.
  */
 
@@ -41,21 +42,21 @@
 /* MEOS */
 #include <meos.h>
 #include <meos_internal.h>
-#include "general/temporal_out.h"
-#include "general/temporal_util.h"
 #include "general/tinstant.h"
 #include "general/tsequence.h"
 #include "general/tsequenceset.h"
+#include "general/type_out.h"
+#include "general/type_util.h"
 #include "point/tpoint_spatialfuncs.h"
 /* MobilityDB */
-#include "pg_general/temporal_util.h"
+#include "pg_general/type_util.h"
 
 /*****************************************************************************
  * Output in WKT and EWKT format
  *****************************************************************************/
 
 /**
- * @ingroup mobilitydb_temporal_in_out
+ * @ingroup mobilitydb_temporal_inout
  * @brief Output a temporal point in Well-Known Text (WKT) format
  * @sqlfunc asText()
  */
@@ -75,26 +76,28 @@ Tpoint_as_text_ext(FunctionCallInfo fcinfo, bool extended)
   PG_RETURN_TEXT_P(result);
 }
 
+PGDLLEXPORT Datum Tpoint_as_text(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Tpoint_as_text);
 /**
- * @ingroup mobilitydb_temporal_in_out
+ * @ingroup mobilitydb_temporal_inout
  * @brief Output a temporal point in Well-Known Text (WKT) format
  * @sqlfunc asText()
  */
-PGDLLEXPORT Datum
+Datum
 Tpoint_as_text(PG_FUNCTION_ARGS)
 {
   return Tpoint_as_text_ext(fcinfo, false);
 }
 
+PGDLLEXPORT Datum Tpoint_as_ewkt(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Tpoint_as_ewkt);
 /**
- * @ingroup mobilitydb_temporal_in_out
+ * @ingroup mobilitydb_temporal_inout
  * @brief Output a temporal point in Extended Well-Known Text (EWKT) format,
  * that is, in WKT format prefixed with the SRID
  * @sqlfunc asEWKT()
  */
-PGDLLEXPORT Datum
+Datum
 Tpoint_as_ewkt(PG_FUNCTION_ARGS)
 {
   return Tpoint_as_text_ext(fcinfo, true);
@@ -103,11 +106,11 @@ Tpoint_as_ewkt(PG_FUNCTION_ARGS)
 /*****************************************************************************/
 
 /**
- * Output a geometry/geography or temporal geometry/geography point array in
- * Well-Known Text (WKT) format
+ * @brief Output a geometry/geography or temporal geometry/geography point
+ * array in Well-Known Text (WKT) format
  */
 static Datum
-geoarr_as_text_ext(FunctionCallInfo fcinfo, bool temparr, bool extended)
+geoarr_as_text_ext(FunctionCallInfo fcinfo, bool temporal, bool extended)
 {
   ArrayType *array = PG_GETARG_ARRAYTYPE_P(0);
   /* Return NULL on empty array */
@@ -122,7 +125,7 @@ geoarr_as_text_ext(FunctionCallInfo fcinfo, bool temparr, bool extended)
     dbl_dig_for_wkt = PG_GETARG_INT32(1);
 
   char **strarr;
-  if (temparr)
+  if (temporal)
   {
     Temporal **temparr = temporalarr_extract(array, &count);
     strarr = tpointarr_as_text((const Temporal **) temparr, count,
@@ -141,51 +144,55 @@ geoarr_as_text_ext(FunctionCallInfo fcinfo, bool temparr, bool extended)
   PG_RETURN_ARRAYTYPE_P(result);
 }
 
+PGDLLEXPORT Datum Geoarr_as_text(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Geoarr_as_text);
 /**
- * @ingroup mobilitydb_temporal_in_out
+ * @ingroup mobilitydb_temporal_inout
  * @brief Output a geometry/geography array in Well-Known Text (WKT) format
  * @sqlfunc asText()
  */
-PGDLLEXPORT Datum
+Datum
 Geoarr_as_text(PG_FUNCTION_ARGS)
 {
   return geoarr_as_text_ext(fcinfo, false, false);
 }
 
+PGDLLEXPORT Datum Geoarr_as_ewkt(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Geoarr_as_ewkt);
 /**
- * @ingroup mobilitydb_temporal_in_out
+ * @ingroup mobilitydb_temporal_inout
  * @brief Output a geometry/geography array in Extended Well-Known Text (EWKT) format,
  * that is, in WKT format prefixed with the SRID
  * @sqlfunc asEWKT()
  */
-PGDLLEXPORT Datum
+Datum
 Geoarr_as_ewkt(PG_FUNCTION_ARGS)
 {
   return geoarr_as_text_ext(fcinfo, false, true);
 }
 
+PGDLLEXPORT Datum Tpointarr_as_text(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Tpointarr_as_text);
 /**
- * @ingroup mobilitydb_temporal_in_out
+ * @ingroup mobilitydb_temporal_inout
  * @brief Output a temporal point array in Well-Known Text (WKT) format
  * @sqlfunc asText()
  */
-PGDLLEXPORT Datum
+Datum
 Tpointarr_as_text(PG_FUNCTION_ARGS)
 {
   return geoarr_as_text_ext(fcinfo, true, false);
 }
 
+PGDLLEXPORT Datum Tpointarr_as_ewkt(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Tpointarr_as_ewkt);
 /**
- * @ingroup mobilitydb_temporal_in_out
+ * @ingroup mobilitydb_temporal_inout
  * @brief Output a temporal point array in Extended Well-Known Text (EWKT) format,
  * that is, in WKT format prefixed with the SRID
  * @sqlfunc asEWKT()
  */
-PGDLLEXPORT Datum
+Datum
 Tpointarr_as_ewkt(PG_FUNCTION_ARGS)
 {
   return geoarr_as_text_ext(fcinfo, true, true);

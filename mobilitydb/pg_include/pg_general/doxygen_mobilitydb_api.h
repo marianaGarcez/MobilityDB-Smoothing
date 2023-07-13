@@ -1,12 +1,12 @@
 /*****************************************************************************
  *
  * This MobilityDB code is provided under The PostgreSQL License.
- * Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+ * Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
  * contributors
  *
  * MobilityDB includes portions of PostGIS version 3 source code released
  * under the GNU General Public License (GPLv2 or later).
- * Copyright (c) 2001-2022, PostGIS contributors
+ * Copyright (c) 2001-2023, PostGIS contributors
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written
@@ -23,7 +23,7 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
  * AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
- * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  *****************************************************************************/
 
@@ -43,53 +43,53 @@
  */
 
 /**
- * @defgroup mobilitydb_spantime Functions for span and time types
+ * @defgroup mobilitydb_setspan Functions for set and span types
  * @ingroup mobilitydb_api
- * @brief Functions for span and time types.
+ * @brief Functions for set and span types.
  *
- * @defgroup mobilitydb_spantime_in_out Input/output functions
- * @ingroup mobilitydb_spantime
- * @brief Input/output functions for span and time types.
+ * @defgroup mobilitydb_setspan_inout Input/output functions
+ * @ingroup mobilitydb_setspan
+ * @brief Input/output functions for set and span types.
  *
- * @defgroup mobilitydb_spantime_constructor Constructors functions
- * @ingroup mobilitydb_spantime
- * @brief Constructor functions for span and time types.
+ * @defgroup mobilitydb_setspan_constructor Constructor functions
+ * @ingroup mobilitydb_setspan
+ * @brief Constructor functions for set and span types.
  *
- * @defgroup mobilitydb_spantime_cast Cast functions
- * @ingroup mobilitydb_spantime
- * @brief Cast functions for span and time types.
+ * @defgroup mobilitydb_setspan_cast Cast functions
+ * @ingroup mobilitydb_setspan
+ * @brief Cast functions for set and span types.
  *
- * @defgroup mobilitydb_spantime_accessor Accessor functions
- * @ingroup mobilitydb_spantime
- * @brief Accessor functions for span and time types.
+ * @defgroup mobilitydb_setspan_accessor Accessor functions
+ * @ingroup mobilitydb_setspan
+ * @brief Accessor functions for set and span types.
  *
- * @defgroup mobilitydb_spantime_transf Transformation functions
- * @ingroup mobilitydb_spantime
- * @brief Transformation functions for span and time types.
+ * @defgroup mobilitydb_setspan_transf Transformation functions
+ * @ingroup mobilitydb_setspan
+ * @brief Transformation functions for set and span types.
  *
- * @defgroup mobilitydb_spantime_bbox Bounding box functions
- * @ingroup mobilitydb_spantime
- * @brief Bounding box functions for span and time types.
+ * @defgroup mobilitydb_setspan_bbox Bounding box functions
+ * @ingroup mobilitydb_setspan
+ * @brief Bounding box functions for set and span types.
  *
- * @defgroup mobilitydb_spantime_topo Topological functions
- * @ingroup mobilitydb_spantime_bbox
- * @brief Topological functions for span and time types.
+ * @defgroup mobilitydb_setspan_topo Topological functions
+ * @ingroup mobilitydb_setspan_bbox
+ * @brief Topological functions for set and span types.
  *
- * @defgroup mobilitydb_spantime_pos Position functions
- * @ingroup mobilitydb_spantime_bbox
- * @brief Position functions for span and time types.
+ * @defgroup mobilitydb_setspan_pos Position functions
+ * @ingroup mobilitydb_setspan_bbox
+ * @brief Position functions for set and span types.
  *
- * @defgroup mobilitydb_spantime_set Set functions
- * @ingroup mobilitydb_spantime
- * @brief Set functions for span and time types.
+ * @defgroup mobilitydb_setspan_set Set functions
+ * @ingroup mobilitydb_setspan
+ * @brief Set functions for set and span types.
  *
- * @defgroup mobilitydb_spantime_dist Distance functions
- * @ingroup mobilitydb_spantime
- * @brief Distance functions for span and time types.
+ * @defgroup mobilitydb_setspan_dist Distance functions
+ * @ingroup mobilitydb_setspan
+ * @brief Distance functions for set and span types.
  *
- * @defgroup mobilitydb_spantime_comp Comparison functions
- * @ingroup mobilitydb_spantime
- * @brief Comparison functions for span and time types.
+ * @defgroup mobilitydb_setspan_comp Comparison functions
+ * @ingroup mobilitydb_setspan
+ * @brief Comparison functions for set and span types.
  */
 
 /**
@@ -97,7 +97,7 @@
  * @ingroup mobilitydb_api
  * @brief Functions for box types.
  *
- * @defgroup mobilitydb_box_in_out Input/output functions
+ * @defgroup mobilitydb_box_inout Input/output functions
  * @ingroup mobilitydb_box
  * @brief Input/output functions for box types.
  *
@@ -139,7 +139,7 @@
  * @ingroup mobilitydb_api
  * @brief Functions for temporal types.
  *
- * @defgroup mobilitydb_temporal_in_out Input/output functions
+ * @defgroup mobilitydb_temporal_inout Input/output functions
  * @ingroup mobilitydb_temporal
  * @brief Input/output functions for temporal types.
  *
@@ -162,6 +162,10 @@
  * @defgroup mobilitydb_temporal_restrict Restriction functions
  * @ingroup mobilitydb_temporal
  * @brief Restriction functions for temporal types.
+ *
+ * @defgroup mobilitydb_temporal_modif Modification functions
+ * @ingroup mobilitydb_temporal
+ * @brief Modification functions for temporal types.
  *
  * @defgroup mobilitydb_temporal_bool Boolean functions
  * @ingroup mobilitydb_temporal

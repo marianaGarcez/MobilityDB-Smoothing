@@ -1,12 +1,12 @@
 /*****************************************************************************
  *
  * This MobilityDB code is provided under The PostgreSQL License.
- * Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+ * Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
  * contributors
  *
  * MobilityDB includes portions of PostGIS version 3 source code released
  * under the GNU General Public License (GPLv2 or later).
- * Copyright (c) 2001-2022, PostGIS contributors
+ * Copyright (c) 2001-2023, PostGIS contributors
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written
@@ -23,7 +23,7 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
  * AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
- * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  *****************************************************************************/
 
@@ -46,44 +46,25 @@ CREATE FUNCTION tagg_deserialize(bytea, internal)
 
 /*****************************************************************************/
 
-CREATE FUNCTION timestampset_extent_transfn(period, timestampset)
-  RETURNS period
-  AS 'MODULE_PATHNAME', 'Timestampset_extent_transfn'
-  LANGUAGE C IMMUTABLE PARALLEL SAFE;
-CREATE FUNCTION periodset_extent_transfn(period, periodset)
-  RETURNS period
-  AS 'MODULE_PATHNAME', 'Periodset_extent_transfn'
-  LANGUAGE C IMMUTABLE PARALLEL SAFE;
-
-CREATE AGGREGATE extent(timestampset) (
-  SFUNC = timestampset_extent_transfn,
-  STYPE = period,
-  COMBINEFUNC = span_extent_combinefn
-  -- , PARALLEL = safe
-);
-CREATE AGGREGATE extent(periodset) (
-  SFUNC = periodset_extent_transfn,
-  STYPE = period,
-  COMBINEFUNC = span_extent_combinefn
-  -- , PARALLEL = safe
-);
-
-/*****************************************************************************/
-
 CREATE TYPE tint;
 
-CREATE FUNCTION tcount_transfn(internal, timestampset)
+CREATE FUNCTION tcount_transfn(internal, timestamptz)
+  RETURNS internal
+  AS 'MODULE_PATHNAME', 'Timestamp_tcount_transfn'
+  LANGUAGE C IMMUTABLE PARALLEL SAFE;
+CREATE FUNCTION tcount_transfn(internal, tstzset)
   RETURNS internal
   AS 'MODULE_PATHNAME', 'Timestampset_tcount_transfn'
   LANGUAGE C IMMUTABLE PARALLEL SAFE;
-CREATE FUNCTION tcount_transfn(internal, period)
+CREATE FUNCTION tcount_transfn(internal, tstzspan)
   RETURNS internal
   AS 'MODULE_PATHNAME', 'Period_tcount_transfn'
   LANGUAGE C IMMUTABLE PARALLEL SAFE;
-CREATE FUNCTION tcount_transfn(internal, periodset)
+CREATE FUNCTION tcount_transfn(internal, tstzspanset)
   RETURNS internal
   AS 'MODULE_PATHNAME', 'Periodset_tcount_transfn'
   LANGUAGE C IMMUTABLE PARALLEL SAFE;
+
 CREATE FUNCTION tcount_combinefn(internal, internal)
   RETURNS internal
   AS 'MODULE_PATHNAME', 'Temporal_tcount_combinefn'
@@ -93,94 +74,52 @@ CREATE FUNCTION tint_tagg_finalfn(internal)
   AS 'MODULE_PATHNAME', 'Temporal_tagg_finalfn'
   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
 
-CREATE AGGREGATE tcount(timestampset) (
+CREATE AGGREGATE tcount(timestamptz) (
   SFUNC = tcount_transfn,
   STYPE = internal,
+#if POSTGRESQL_VERSION_NUMBER >= 130000
   COMBINEFUNC = tcount_combinefn,
+#endif //POSTGRESQL_VERSION_NUMBER >= 130000
   FINALFUNC = tint_tagg_finalfn,
   SERIALFUNC = tagg_serialize,
-  DESERIALFUNC = tagg_deserialize
-  -- , PARALLEL = SAFE
+  DESERIALFUNC = tagg_deserialize,
+  PARALLEL = SAFE
 );
 
-CREATE AGGREGATE tcount(period) (
+CREATE AGGREGATE tcount(tstzset) (
   SFUNC = tcount_transfn,
   STYPE = internal,
+#if POSTGRESQL_VERSION_NUMBER >= 130000
   COMBINEFUNC = tcount_combinefn,
+#endif //POSTGRESQL_VERSION_NUMBER >= 130000
   FINALFUNC = tint_tagg_finalfn,
   SERIALFUNC = tagg_serialize,
-  DESERIALFUNC = tagg_deserialize
-  -- , PARALLEL = SAFE
+  DESERIALFUNC = tagg_deserialize,
+  PARALLEL = SAFE
 );
 
-CREATE AGGREGATE tcount(periodset) (
+CREATE AGGREGATE tcount(tstzspan) (
   SFUNC = tcount_transfn,
   STYPE = internal,
+#if POSTGRESQL_VERSION_NUMBER >= 130000
   COMBINEFUNC = tcount_combinefn,
+#endif //POSTGRESQL_VERSION_NUMBER >= 130000
   FINALFUNC = tint_tagg_finalfn,
   SERIALFUNC = tagg_serialize,
-  DESERIALFUNC = tagg_deserialize
-  -- , PARALLEL = SAFE
+  DESERIALFUNC = tagg_deserialize,
+  PARALLEL = SAFE
 );
 
-/*****************************************************************************/
-
-CREATE FUNCTION timestampset_tunion_transfn(internal, timestampset)
-  RETURNS internal
-  AS 'MODULE_PATHNAME', 'Timestampset_tunion_transfn'
-  LANGUAGE C IMMUTABLE PARALLEL SAFE;
-CREATE FUNCTION period_tunion_transfn(internal, period)
-  RETURNS internal
-  AS 'MODULE_PATHNAME', 'Period_tunion_transfn'
-  LANGUAGE C IMMUTABLE PARALLEL SAFE;
-CREATE FUNCTION periodset_tunion_transfn(internal, periodset)
-  RETURNS internal
-  AS 'MODULE_PATHNAME', 'Periodset_tunion_transfn'
-  LANGUAGE C IMMUTABLE PARALLEL SAFE;
-
-CREATE FUNCTION time_tunion_combinefn(internal, internal)
-  RETURNS internal
-  AS 'MODULE_PATHNAME', 'Time_tunion_combinefn'
-  LANGUAGE C IMMUTABLE PARALLEL SAFE;
-
-CREATE FUNCTION timestamp_tunion_finalfn(internal)
-  RETURNS timestampset
-  AS 'MODULE_PATHNAME', 'Timestamp_tunion_finalfn'
-  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-CREATE FUNCTION period_tunion_finalfn(internal)
-  RETURNS periodset
-  AS 'MODULE_PATHNAME', 'Period_tunion_finalfn'
-  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-
-CREATE AGGREGATE tunion(timestampset) (
-  SFUNC = timestampset_tunion_transfn,
+CREATE AGGREGATE tcount(tstzspanset) (
+  SFUNC = tcount_transfn,
   STYPE = internal,
-  COMBINEFUNC = time_tunion_combinefn,
-  FINALFUNC = timestamp_tunion_finalfn,
+#if POSTGRESQL_VERSION_NUMBER >= 130000
+  COMBINEFUNC = tcount_combinefn,
+#endif //POSTGRESQL_VERSION_NUMBER >= 130000
+  FINALFUNC = tint_tagg_finalfn,
   SERIALFUNC = tagg_serialize,
-  DESERIALFUNC = tagg_deserialize
-  -- , PARALLEL = SAFE
+  DESERIALFUNC = tagg_deserialize,
+  PARALLEL = SAFE
 );
-
-CREATE AGGREGATE tunion(period) (
-  SFUNC = period_tunion_transfn,
-  STYPE = internal,
-  COMBINEFUNC = time_tunion_combinefn,
-  FINALFUNC = period_tunion_finalfn,
-  SERIALFUNC = tagg_serialize,
-  DESERIALFUNC = tagg_deserialize
-  -- , PARALLEL = SAFE
-);
-
-CREATE AGGREGATE tunion(periodset) (
-  SFUNC = periodset_tunion_transfn,
-  STYPE = internal,
-  COMBINEFUNC = time_tunion_combinefn,
-  FINALFUNC = period_tunion_finalfn,
-  SERIALFUNC = tagg_serialize,
-  DESERIALFUNC = tagg_deserialize
-  -- , PARALLEL = SAFE
-);
-
 
 /*****************************************************************************/

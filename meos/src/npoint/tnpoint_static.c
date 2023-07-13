@@ -1,12 +1,12 @@
 /*****************************************************************************
  *
  * This MobilityDB code is provided under The PostgreSQL License.
- * Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+ * Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
  * contributors
  *
  * MobilityDB includes portions of PostGIS version 3 source code released
  * under the GNU General Public License (GPLv2 or later).
- * Copyright (c) 2001-2022, PostGIS contributors
+ * Copyright (c) 2001-2023, PostGIS contributors
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written
@@ -23,11 +23,12 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
  * AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
- * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  *****************************************************************************/
 
 /**
+ * @file
  * @brief Network-based static point and segment types.
  *
  * Several functions are commented out since they are not currently used.
@@ -46,10 +47,10 @@
 #include <liblwgeom.h>
 /* MEOS */
 #include <meos.h>
-#include "general/pg_call.h"
-#include "general/temporal_out.h"
-#include "general/temporal_util.h"
+#include "general/pg_types.h"
 #include "general/tnumber_mathfuncs.h"
+#include "general/type_out.h"
+#include "general/type_util.h"
 #include "point/pgis_call.h"
 #include "point/tpoint_out.h"
 #include "point/tpoint_spatialfuncs.h"
@@ -69,7 +70,7 @@
 int32_t
 get_srid_ways()
 {
-  int32_t srid_ways;
+  int32_t srid_ways = 0; /* make compiler quiet */
   bool isNull = true;
   SPI_connect();
   int ret = SPI_execute("SELECT ST_SRID(the_geom) FROM public.ways LIMIT 1;", true, 1);
@@ -93,12 +94,13 @@ get_srid_ways()
 /*****************************************************************************/
 
 /**
- * Convert a network point array into a geometry
+ * @brief Convert an array of network points into a geometry
+ * @pre The number of network points is greater than 1
  */
 GSERIALIZED *
 npointarr_geom(Npoint **points, int count)
 {
-  assert(count > 0);
+  assert(count > 1);
   LWGEOM **geoms = palloc(sizeof(LWGEOM *) * count);
   for (int i = 0; i < count; i++)
   {
@@ -108,28 +110,23 @@ npointarr_geom(Npoint **points, int count)
     geoms[i] = lwgeom_line_interpolate_point(lwline, points[i]->pos, srid, 0);
     pfree(line); pfree(lwline);
   }
-  GSERIALIZED *result;
-  if (count == 1)
-    result = geo_serialize(geoms[0]);
-  else
-  {
-    int newcount;
-    LWGEOM **newgeoms = lwpointarr_remove_duplicates(geoms, count, &newcount);
-    LWGEOM *lwgeom = lwpointarr_make_trajectory(newgeoms, newcount, STEPWISE);
-    result = geo_serialize(lwgeom);
-    pfree(newgeoms);
-  }
-  pfree_array((void **) geoms, count);  
+  int newcount;
+  LWGEOM **newgeoms = lwpointarr_remove_duplicates(geoms, count, &newcount);
+  LWGEOM *lwgeom = lwpointarr_make_trajectory(newgeoms, newcount, STEP);
+  GSERIALIZED *result = geo_serialize(lwgeom);
+  pfree(newgeoms); pfree(lwgeom);
+  pfree_array((void **) geoms, count);
   return result;
 }
 
 /**
- * Convert a network segment array into a geometry
+ * @brief Convert an array of network segments into a geometry
+ * @pre The number of network segments is greater than 1
  */
 GSERIALIZED *
 nsegmentarr_geom(Nsegment **segments, int count)
 {
-  assert(count > 0);
+  assert(count > 1);
   GSERIALIZED **geoms = palloc(sizeof(GSERIALIZED *) * count);
   for (int i = 0; i < count; i++)
   {
@@ -143,14 +140,8 @@ nsegmentarr_geom(Nsegment **segments, int count)
         segments[i]->pos2);
     pfree(line);
   }
-  GSERIALIZED *result;
-  if (count == 1)
-    result = geoms[0];
-  else
-  {
-    result = gserialized_array_union(geoms, count);
-    pfree_array((void **) geoms, count);
-  }
+  GSERIALIZED *result = gserialized_array_union(geoms, count);
+  pfree_array((void **) geoms, count);
   return result;
 }
 
@@ -316,7 +307,7 @@ void
 npoint_set(int64 rid, double pos, Npoint *np)
 {
   if (!route_exists(rid))
-    elog(ERROR, "There is no route with gid value %lu in table ways", rid);
+    elog(ERROR, "There is no route with gid value %ld in table ways", rid);
   if (pos < 0 || pos > 1)
     elog(ERROR, "The relative position must be a real number between 0 and 1");
 
@@ -346,7 +337,7 @@ void
 nsegment_set(int64 rid, double pos1, double pos2, Nsegment *ns)
 {
   if (! route_exists(rid))
-    elog(ERROR, "There is no route with gid value %lu in table ways", rid);
+    elog(ERROR, "There is no route with gid value %ld in table ways", rid);
   if (pos1 < 0 || pos1 > 1 || pos2 < 0 || pos2 > 1)
     elog(ERROR, "The relative position of a network segment must be a real number between 0 and 1");
 
@@ -515,7 +506,7 @@ route_geom(int64 rid)
 int64
 rid_from_geom(Datum geom)
 {
-  char *geomstr = ewkt_out(0, geom, OUT_DEFAULT_DECIMAL_DIGITS);
+  char *geomstr = ewkt_out(geom, 0, OUT_DEFAULT_DECIMAL_DIGITS);
   char sql[128];
   sprintf(sql, "SELECT gid FROM public.ways WHERE ST_DWithin(the_geom, '%s', %lf) "
     "ORDER BY ST_Distance(the_geom, '%s') LIMIT 1", geomstr, DIST_EPSILON, geomstr);
@@ -563,7 +554,7 @@ geom_npoint(const GSERIALIZED *gs)
   int32_t srid_ways = get_srid_ways();
   ensure_same_srid(srid_geom, srid_ways);
 
-  char *geomstr = ewkt_out(0, PointerGetDatum(gs), OUT_DEFAULT_DECIMAL_DIGITS);
+  char *geomstr = ewkt_out(PointerGetDatum(gs), 0, OUT_DEFAULT_DECIMAL_DIGITS);
   char sql[512];
   sprintf(sql, "SELECT npoint(gid, ST_LineLocatePoint(the_geom, '%s')) "
     "FROM public.ways WHERE ST_DWithin(the_geom, '%s', %lf) "
@@ -603,7 +594,7 @@ nsegment_geom(const Nsegment *ns)
 {
   GSERIALIZED *line = route_geom(ns->rid);
   GSERIALIZED *result;
-  if (fabs(ns->pos1 - ns->pos2) < MOBDB_EPSILON)
+  if (fabs(ns->pos1 - ns->pos2) < MEOS_EPSILON)
     result = gserialized_line_interpolate_point(line, ns->pos1, 0);
   else
     result = gserialized_line_substring(line, ns->pos1, ns->pos2);
@@ -625,13 +616,13 @@ geom_nsegment(const GSERIALIZED *gs)
 
   Npoint **points;
   Npoint *np;
-  int k = 0;
+  int npoints = 0;
   if (geomtype == POINTTYPE)
   {
     points = palloc0(sizeof(Npoint *));
     np = geom_npoint(gs);
     if (np != NULL)
-      points[k++] = np;
+      points[npoints++] = np;
   }
   else /* geomtype == LINETYPE */
   {
@@ -643,30 +634,30 @@ geom_nsegment(const GSERIALIZED *gs)
       GSERIALIZED *point = gserialized_pointn_linestring(gs, i + 1);
       np = geom_npoint(point);
       if (np != NULL)
-        points[k++] = np;
+        points[npoints++] = np;
       /* Cannot pfree(point); */
     }
   }
 
-  if (k == 0)
+  if (npoints == 0)
   {
     pfree(points);
     return NULL;
   }
   int64 rid = points[0]->rid;
   double minPos = points[0]->pos, maxPos = points[0]->pos;
-  for (int i = 1; i < k; i++)
+  for (int i = 1; i < npoints; i++)
   {
     if (points[i]->rid != rid)
     {
-      pfree_array((void **) points, k);
+      pfree_array((void **) points, npoints);
       return NULL;
     }
     minPos = Min(minPos, points[i]->pos);
     maxPos = Max(maxPos, points[i]->pos);
   }
   Nsegment *result = nsegment_make(rid, minPos, maxPos);
-  pfree_array((void **) points, k);
+  pfree_array((void **) points, npoints);
   return result;
 }
 
@@ -708,7 +699,7 @@ nsegment_srid(const Nsegment *ns)
 bool
 npoint_eq(const Npoint *np1, const Npoint *np2)
 {
-  return np1->rid == np2->rid && fabs(np1->pos - np2->pos) < MOBDB_EPSILON;
+  return np1->rid == np2->rid && fabs(np1->pos - np2->pos) < MEOS_EPSILON;
 }
 
 /**
@@ -791,8 +782,8 @@ npoint_ge(const Npoint *np1, const Npoint *np2)
 bool
 nsegment_eq(const Nsegment *ns1, const Nsegment *ns2)
 {
-  return ns1->rid == ns2->rid && fabs(ns1->pos1 - ns2->pos1) < MOBDB_EPSILON &&
-    fabs(ns1->pos2 - ns2->pos2) < MOBDB_EPSILON;
+  return ns1->rid == ns2->rid && fabs(ns1->pos1 - ns2->pos1) < MEOS_EPSILON &&
+    fabs(ns1->pos2 - ns2->pos2) < MEOS_EPSILON;
 }
 
 /**
@@ -890,6 +881,23 @@ npoint_hash(const Npoint *np)
 
   /* Merge hashes of value and position */
   uint32 result = rid_hash;
+  result = (result << 1) | (result >> 31);
+  result ^= pos_hash;
+  return result;
+}
+
+/**
+ * @brief Return the 32-bit hash value of a network point.
+ */
+uint64
+npoint_hash_extended(const Npoint *np, uint64 seed)
+{
+  /* Compute hashes of value and position */
+  uint64 rid_hash = pg_hashint8extended(np->rid, seed);
+  uint64 pos_hash = pg_hashfloat8extended(np->pos, seed);
+
+  /* Merge hashes of value and position */
+  uint64 result = rid_hash;
   result = (result << 1) | (result >> 31);
   result ^= pos_hash;
   return result;

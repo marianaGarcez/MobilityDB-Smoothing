@@ -1,12 +1,12 @@
 /*****************************************************************************
  *
  * This MobilityDB code is provided under The PostgreSQL License.
- * Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+ * Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
  * contributors
  *
  * MobilityDB includes portions of PostGIS version 3 source code released
  * under the GNU General Public License (GPLv2 or later).
- * Copyright (c) 2001-2022, PostGIS contributors
+ * Copyright (c) 2001-2023, PostGIS contributors
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written
@@ -23,7 +23,7 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
  * AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
- * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  *****************************************************************************/
 
@@ -37,9 +37,9 @@
 
 /* PostgreSQL */
 #include <postgres.h>
-/* MobilityDB */
+/* MEOS */
 #include <meos.h>
-#include "general/temporal_catalog.h"
+#include "general/meos_catalog.h"
 
 /*****************************************************************************/
 
@@ -61,8 +61,17 @@ typedef struct
 
 #define DatumGetSpanP(X)           ((Span *) DatumGetPointer(X))
 #define SpanPGetDatum(X)           PointerGetDatum(X)
-#define PG_GETARG_SPAN_P(X)        DatumGetSpanP(PG_GETARG_POINTER(X))
+#define PG_GETARG_SPAN_P(X)        DatumGetSpanP(PG_GETARG_DATUM(X))
 #define PG_RETURN_SPAN_P(X)        PG_RETURN_POINTER(X)
+
+#if MEOS
+  #define DatumGetSpanSetP(X)      ((SpanSet *) DatumGetPointer(X))
+#else
+  #define DatumGetSpanSetP(X)      ((SpanSet *) PG_DETOAST_DATUM(X))
+#endif /* MEOS */
+#define SpanSetPGetDatum(X)        PointerGetDatum(X)
+#define PG_GETARG_SPANSET_P(X)     ((SpanSet *) PG_GETARG_VARLENA_P(X))
+#define PG_RETURN_SPANSET_P(X)     PG_RETURN_POINTER(X)
 
 /*****************************************************************************/
 
@@ -75,14 +84,22 @@ extern int span_bound_cmp(const SpanBound *b1, const SpanBound *b2);
 extern int span_bound_qsort_cmp(const void *a1, const void *a2);
 extern int span_lower_cmp(const Span *a, const Span *b);
 extern int span_upper_cmp(const Span *a, const Span *b);
-extern Span **spanarr_normalize(Span **spans, int count, bool sort,
+extern Span *spanarr_normalize(Span *spans, int count, bool sort,
   int *newcount);
 extern void span_bounds(const Span *s, double *xmin, double *xmax);
+extern void lower_upper_shift_tscale(const Interval *shift,
+  const Interval *duration, TimestampTz *lower, TimestampTz *upper);
+extern void period_delta_scale(Span *p, TimestampTz origin, TimestampTz delta,
+  double scale);
+extern void period_shift_tscale1(Span *p, const Interval *shift,
+  const Interval *duration, TimestampTz *delta, double *scale);
 
-extern void intspan_set_floatspan(const Span *s1, Span *s2);
-extern void floatspan_set_intspan(const Span *s1, Span *s2);
 extern size_t span_to_wkb_size(const Span *s);
 extern uint8_t *span_to_wkb_buf(const Span *s, uint8_t *buf, uint8_t variant);
+
+extern int minus_span_span_iter(const Span *s1, const Span *s2, Span *result);
+extern int minus_span_value_iter(const Span *s, Datum d, meosType basetype,
+  Span *result);
 
 /*****************************************************************************/
 

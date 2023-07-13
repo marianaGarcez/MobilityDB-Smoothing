@@ -1,12 +1,12 @@
 -------------------------------------------------------------------------------
 --
 -- This MobilityDB code is provided under The PostgreSQL License.
--- Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+-- Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
 -- contributors
 --
 -- MobilityDB includes portions of PostGIS version 3 source code released
 -- under the GNU General Public License (GPLv2 or later).
--- Copyright (c) 2001-2022, PostGIS contributors
+-- Copyright (c) 2001-2023, PostGIS contributors
 --
 -- Permission to use, copy, modify, and distribute this software and its
 -- documentation for any purpose, without fee, and without a written
@@ -23,7 +23,7 @@
 -- INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
 -- AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
 -- AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
--- PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+-- PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
 --
 -------------------------------------------------------------------------------
 
@@ -63,8 +63,8 @@ SELECT spanBucket(3.5, 2.5, 1.5);
 
 -------------------------------------------------------------------------------
 
-SELECT bucketList(period '[2000-01-01, 2000-01-10]', '1 week') LIMIT 3;
-SELECT bucketList(period '[2000-01-01, 2000-01-10]', '1 week', '2020-06-15') LIMIT 3;
+SELECT bucketList(tstzspan '[2000-01-01, 2000-01-10]', '1 week') LIMIT 3;
+SELECT bucketList(tstzspan '[2000-01-01, 2000-01-10]', '1 week', '2020-06-15') LIMIT 3;
 
 SELECT timeBucket('2020-01-01', '1 week');
 SELECT timeBucket('2020-01-01', '1 week', timestamptz '2001-06-01');
@@ -78,11 +78,11 @@ SELECT periodBucket('2020-01-01', '1 week', timestamptz '2001-06-01');
 
 -------------------------------------------------------------------------------
 
-SELECT multidimGrid(tfloat '[15@2000-01-15, 25@2000-01-25]'::tbox, 2.5, '1 week') LIMIT 3;
-SELECT multidimGrid(tfloat '[15@2000-01-15, 25@2000-01-25]'::tbox, 2.5, '1 week', 15.5) LIMIT 3;
-SELECT multidimGrid(tfloat '[15@2000-01-15, 25@2000-01-25]'::tbox, 2.5, '1 week', 15.5, '2000-01-15') LIMIT 3;
-SELECT multidimTile(15.5, timestamptz '2000-01-15', 2.5, interval '1 week');
-SELECT multidimTile(15.5, timestamptz '2000-01-15', 2.5, interval '1 week', 1.5, '2020-06-15');
+SELECT tileList(tfloat '[15@2000-01-15, 25@2000-01-25]'::tbox, 2.5, '1 week') LIMIT 3;
+SELECT tileList(tfloat '[15@2000-01-15, 25@2000-01-25]'::tbox, 2.5, '1 week', 15.5) LIMIT 3;
+SELECT tileList(tfloat '[15@2000-01-15, 25@2000-01-25]'::tbox, 2.5, '1 week', 15.5, '2000-01-15') LIMIT 3;
+SELECT tile(15.5, timestamptz '2000-01-15', 2.5, interval '1 week');
+SELECT tile(15.5, timestamptz '2000-01-15', 2.5, interval '1 week', 1.5, '2020-06-15');
 
 -------------------------------------------------------------------------------
 -- valueSplit
@@ -95,9 +95,9 @@ SELECT valueSplit(tint '{[1@2000-01-01, 2@2000-01-02, 1@2000-01-03],[3@2000-01-0
 SELECT valueSplit(tfloat '1.5@2000-01-01', 0.5);
 SELECT valueSplit(tfloat '{1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03}', 0.5);
 SELECT valueSplit(tfloat '[1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03]', 0.5);
-SELECT valueSplit(tfloat 'Interp=Stepwise;[1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03]', 0.5);
+SELECT valueSplit(tfloat 'Interp=Step;[1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03]', 0.5);
 SELECT valueSplit(tfloat '{[1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03],[3.5@2000-01-04, 3.5@2000-01-05]}', 0.5);
-SELECT valueSplit(tfloat 'Interp=Stepwise;{[1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03],[3.5@2000-01-04, 3.5@2000-01-05]}', 0.5);
+SELECT valueSplit(tfloat 'Interp=Step;{[1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03],[3.5@2000-01-04, 3.5@2000-01-05]}', 0.5);
 
 -------------------------------------------------------------------------------
 -- timeSplit
@@ -114,9 +114,9 @@ SELECT timeSplit(tint '{[1@2000-01-01, 2@2000-01-02, 1@2000-01-03],[3@2000-01-04
 SELECT timeSplit(tfloat '1.5@2000-01-01', '1 week');
 SELECT timeSplit(tfloat '{1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03}', '1 week');
 SELECT timeSplit(tfloat '[1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03]', '1 week');
-SELECT timeSplit(tfloat 'Interp=Stepwise;[1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03]', '1 week');
+SELECT timeSplit(tfloat 'Interp=Step;[1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03]', '1 week');
 SELECT timeSplit(tfloat '{[1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03],[3.5@2000-01-04, 3.5@2000-01-05]}', '1 week');
-SELECT timeSplit(tfloat 'Interp=Stepwise;{[1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03],[3.5@2000-01-04, 3.5@2000-01-05]}', '1 week');
+SELECT timeSplit(tfloat 'Interp=Step;{[1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03],[3.5@2000-01-04, 3.5@2000-01-05]}', '1 week');
 SELECT timeSplit(ttext 'AAA@2000-01-01', '1 week');
 SELECT timeSplit(ttext '{AAA@2000-01-01, BBB@2000-01-02, AAA@2000-01-03}', '1 week');
 SELECT timeSplit(ttext '[AAA@2000-01-01, BBB@2000-01-02, AAA@2000-01-03]', '1 week');
@@ -133,8 +133,8 @@ SELECT valueTimeSplit(tint '{[1@2000-01-01, 2@2000-01-02, 1@2000-01-03],[3@2000-
 SELECT valueTimeSplit(tfloat '1.5@2000-01-01', 0.5, '1 week');
 SELECT valueTimeSplit(tfloat '{1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03}', 0.5, '1 week');
 SELECT valueTimeSplit(tfloat '[1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03]', 0.5, '1 week');
-SELECT valueTimeSplit(tfloat 'Interp=Stepwise;[1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03]', 0.5, '1 week');
+SELECT valueTimeSplit(tfloat 'Interp=Step;[1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03]', 0.5, '1 week');
 SELECT valueTimeSplit(tfloat '{[1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03],[3.5@2000-01-04, 3.5@2000-01-05]}', 0.5, '1 week');
-SELECT valueTimeSplit(tfloat 'Interp=Stepwise;{[1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03],[3.5@2000-01-04, 3.5@2000-01-05]}', 0.5, '1 week');
+SELECT valueTimeSplit(tfloat 'Interp=Step;{[1.5@2000-01-01, 2.5@2000-01-02, 1.5@2000-01-03],[3.5@2000-01-04, 3.5@2000-01-05]}', 0.5, '1 week');
 
 -------------------------------------------------------------------------------

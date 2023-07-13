@@ -1,12 +1,12 @@
 /*****************************************************************************
  *
  * This MobilityDB code is provided under The PostgreSQL License.
- * Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+ * Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
  * contributors
  *
  * MobilityDB includes portions of PostGIS version 3 source code released
  * under the GNU General Public License (GPLv2 or later).
- * Copyright (c) 2001-2022, PostGIS contributors
+ * Copyright (c) 2001-2023, PostGIS contributors
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written
@@ -23,12 +23,13 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
  * AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
- * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  *****************************************************************************/
 
 /**
- * @brief @brief Temporal spatial relationships for temporal network points.
+ * @file
+ * @brief Temporal spatial relationships for temporal network points.
  *
  * These relationships are applied at each instant and result in a temporal
  * boolean/text. The following relationships are supported:
@@ -43,6 +44,7 @@
 /* MobilityDB */
 #include "pg_general/temporal.h"
 #include "pg_npoint/tnpoint.h"
+#include "pg_point/tpoint_spatialfuncs.h"
 
 /*****************************************************************************
  * Generic functions
@@ -55,18 +57,22 @@
 static Datum
 tinterrel_tnpoint_npoint_ext(FunctionCallInfo fcinfo, bool tinter)
 {
+  if (PG_ARGISNULL(0) || PG_ARGISNULL(1))
+    PG_RETURN_NULL();
   Temporal *temp = PG_GETARG_TEMPORAL_P(0);
   Npoint *np = PG_GETARG_NPOINT_P(1);
   bool restr = false;
   bool atvalue = false;
-  if (PG_NARGS() == 3)
+  if (PG_NARGS() > 2 && ! PG_ARGISNULL(2))
   {
     atvalue = PG_GETARG_BOOL(2);
     restr = true;
   }
+  /* Store fcinfo into a global variable */
+  store_fcinfo(fcinfo);
   Temporal *result = tinterrel_tnpoint_npoint(temp, np, tinter, restr, atvalue);
   PG_FREE_IF_COPY(temp, 0);
-  if (result == NULL)
+  if (! result)
     PG_RETURN_NULL();
   PG_RETURN_POINTER(result);
 }
@@ -78,18 +84,22 @@ tinterrel_tnpoint_npoint_ext(FunctionCallInfo fcinfo, bool tinter)
 static Datum
 tinterrel_npoint_tnpoint_ext(FunctionCallInfo fcinfo, bool tinter)
 {
+  if (PG_ARGISNULL(0) || PG_ARGISNULL(1))
+    PG_RETURN_NULL();
   Npoint *np = PG_GETARG_NPOINT_P(0);
   Temporal *temp = PG_GETARG_TEMPORAL_P(1);
   bool restr = false;
   bool atvalue = false;
-  if (PG_NARGS() == 3)
+  if (PG_NARGS() > 2 && ! PG_ARGISNULL(2))
   {
     atvalue = PG_GETARG_BOOL(2);
     restr = true;
   }
+  /* Store fcinfo into a global variable */
+  store_fcinfo(fcinfo);
   Temporal *result = tinterrel_tnpoint_npoint(temp, np, tinter, restr, atvalue);
   PG_FREE_IF_COPY(temp, 1);
-  if (result == NULL)
+  if (! result)
     PG_RETURN_NULL();
   PG_RETURN_POINTER(result);
 }
@@ -101,19 +111,23 @@ tinterrel_npoint_tnpoint_ext(FunctionCallInfo fcinfo, bool tinter)
 static Datum
 tinterrel_geo_tnpoint_ext(FunctionCallInfo fcinfo, bool tinter)
 {
+  if (PG_ARGISNULL(0) || PG_ARGISNULL(1))
+    PG_RETURN_NULL();
   GSERIALIZED *geo = PG_GETARG_GSERIALIZED_P(0);
   Temporal *temp = PG_GETARG_TEMPORAL_P(1);
   bool restr = false;
   bool atvalue = false;
-  if (PG_NARGS() == 3)
+  if (PG_NARGS() > 2 && ! PG_ARGISNULL(2))
   {
     atvalue = PG_GETARG_BOOL(2);
     restr = true;
   }
+  /* Store fcinfo into a global variable */
+  store_fcinfo(fcinfo);
   Temporal *result = tinterrel_tnpoint_geo(temp, geo, tinter, restr, atvalue);
   PG_FREE_IF_COPY(geo, 0);
   PG_FREE_IF_COPY(temp, 1);
-  if (result == NULL)
+  if (! result)
     PG_RETURN_NULL();
   PG_RETURN_POINTER(result);
 }
@@ -125,19 +139,23 @@ tinterrel_geo_tnpoint_ext(FunctionCallInfo fcinfo, bool tinter)
 static Datum
 tinterrel_tnpoint_geo_ext(FunctionCallInfo fcinfo, bool tinter)
 {
+  if (PG_ARGISNULL(0) || PG_ARGISNULL(1))
+    PG_RETURN_NULL();
   Temporal *temp = PG_GETARG_TEMPORAL_P(0);
   GSERIALIZED *geo = PG_GETARG_GSERIALIZED_P(1);
   bool restr = false;
   bool atvalue = false;
-  if (PG_NARGS() == 3)
+  if (PG_NARGS() > 2 && ! PG_ARGISNULL(2))
   {
     atvalue = PG_GETARG_BOOL(2);
     restr = true;
   }
+  /* Store fcinfo into a global variable */
+  store_fcinfo(fcinfo);
   Temporal *result = tinterrel_tnpoint_geo(temp, geo, tinter, restr, atvalue);
   PG_FREE_IF_COPY(geo, 1);
   PG_FREE_IF_COPY(temp, 0);
-  if (result == NULL)
+  if (! result)
     PG_RETURN_NULL();
   PG_RETURN_POINTER(result);
 }
@@ -146,6 +164,7 @@ tinterrel_tnpoint_geo_ext(FunctionCallInfo fcinfo, bool tinter)
  * Temporal contains
  *****************************************************************************/
 
+PGDLLEXPORT Datum Tcontains_geo_tnpoint(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Tcontains_geo_tnpoint);
 /**
  * @ingroup mobilitydb_temporal_spatial_rel
@@ -153,22 +172,26 @@ PG_FUNCTION_INFO_V1(Tcontains_geo_tnpoint);
  * temporal network point
  * @sqlfunc tcontains()
  */
-PGDLLEXPORT Datum
+Datum
 Tcontains_geo_tnpoint(PG_FUNCTION_ARGS)
 {
+  if (PG_ARGISNULL(0) || PG_ARGISNULL(1))
+    PG_RETURN_NULL();
   GSERIALIZED *geo = PG_GETARG_GSERIALIZED_P(0);
   Temporal *temp = PG_GETARG_TEMPORAL_P(1);
   bool restr = false;
   bool atvalue = false;
-  if (PG_NARGS() == 3)
+  if (PG_NARGS() > 2 && ! PG_ARGISNULL(2))
   {
     atvalue = PG_GETARG_BOOL(2);
     restr = true;
   }
+  /* Store fcinfo into a global variable */
+  store_fcinfo(fcinfo);
   Temporal *result = tcontains_geo_tnpoint(geo, temp, restr, atvalue);
   PG_FREE_IF_COPY(geo, 0);
   PG_FREE_IF_COPY(temp, 1);
-  if (result == NULL)
+  if (! result)
     PG_RETURN_NULL();
   PG_RETURN_POINTER(result);
 }
@@ -177,6 +200,7 @@ Tcontains_geo_tnpoint(PG_FUNCTION_ARGS)
  * Temporal disjoint
  *****************************************************************************/
 
+PGDLLEXPORT Datum Tdisjoint_geo_tnpoint(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Tdisjoint_geo_tnpoint);
 /**
  * @ingroup mobilitydb_temporal_spatial_rel
@@ -184,12 +208,13 @@ PG_FUNCTION_INFO_V1(Tdisjoint_geo_tnpoint);
  * temporal network point
  * @sqlfunc tdisjoint()
  */
-PGDLLEXPORT Datum
+Datum
 Tdisjoint_geo_tnpoint(PG_FUNCTION_ARGS)
 {
   return tinterrel_geo_tnpoint_ext(fcinfo, TDISJOINT);
 }
 
+PGDLLEXPORT Datum Tdisjoint_npoint_tnpoint(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Tdisjoint_npoint_tnpoint);
 /**
  * @ingroup mobilitydb_temporal_spatial_rel
@@ -197,12 +222,13 @@ PG_FUNCTION_INFO_V1(Tdisjoint_npoint_tnpoint);
  * temporal network point
  * @sqlfunc tdisjoint()
  */
-PGDLLEXPORT Datum
+Datum
 Tdisjoint_npoint_tnpoint(PG_FUNCTION_ARGS)
 {
   return tinterrel_npoint_tnpoint_ext(fcinfo, TDISJOINT);
 }
 
+PGDLLEXPORT Datum Tdisjoint_tnpoint_geo(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Tdisjoint_tnpoint_geo);
 /**
  * @ingroup mobilitydb_temporal_spatial_rel
@@ -210,12 +236,13 @@ PG_FUNCTION_INFO_V1(Tdisjoint_tnpoint_geo);
  * and the geometry
  * @sqlfunc tdisjoint()
  */
-PGDLLEXPORT Datum
+Datum
 Tdisjoint_tnpoint_geo(PG_FUNCTION_ARGS)
 {
   return tinterrel_tnpoint_geo_ext(fcinfo, TDISJOINT);
 }
 
+PGDLLEXPORT Datum Tdisjoint_tnpoint_npoint(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Tdisjoint_tnpoint_npoint);
 /**
  * @ingroup mobilitydb_temporal_spatial_rel
@@ -223,7 +250,7 @@ PG_FUNCTION_INFO_V1(Tdisjoint_tnpoint_npoint);
  * and the network point
  * @sqlfunc tdisjoint()
  */
-PGDLLEXPORT Datum
+Datum
 Tdisjoint_tnpoint_npoint(PG_FUNCTION_ARGS)
 {
   return tinterrel_tnpoint_npoint_ext(fcinfo, TDISJOINT);
@@ -233,6 +260,7 @@ Tdisjoint_tnpoint_npoint(PG_FUNCTION_ARGS)
  * Temporal intersects
  *****************************************************************************/
 
+PGDLLEXPORT Datum Tintersects_geo_tnpoint(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Tintersects_geo_tnpoint);
 /**
  * @ingroup mobilitydb_temporal_spatial_rel
@@ -240,12 +268,13 @@ PG_FUNCTION_INFO_V1(Tintersects_geo_tnpoint);
  * temporal network point
  * @sqlfunc tintersects()
  */
-PGDLLEXPORT Datum
+Datum
 Tintersects_geo_tnpoint(PG_FUNCTION_ARGS)
 {
   return tinterrel_geo_tnpoint_ext(fcinfo, TINTERSECTS);
 }
 
+PGDLLEXPORT Datum Tintersects_npoint_tnpoint(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Tintersects_npoint_tnpoint);
 /**
  * @ingroup mobilitydb_temporal_spatial_rel
@@ -253,12 +282,13 @@ PG_FUNCTION_INFO_V1(Tintersects_npoint_tnpoint);
  * the temporal network point
  * @sqlfunc tintersects()
  */
-PGDLLEXPORT Datum
+Datum
 Tintersects_npoint_tnpoint(PG_FUNCTION_ARGS)
 {
   return tinterrel_npoint_tnpoint_ext(fcinfo, TINTERSECTS);
 }
 
+PGDLLEXPORT Datum Tintersects_tnpoint_geo(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Tintersects_tnpoint_geo);
 /**
  * @ingroup mobilitydb_temporal_spatial_rel
@@ -266,12 +296,13 @@ PG_FUNCTION_INFO_V1(Tintersects_tnpoint_geo);
  * point and the geometry
  * @sqlfunc tintersects()
  */
-PGDLLEXPORT Datum
+Datum
 Tintersects_tnpoint_geo(PG_FUNCTION_ARGS)
 {
   return tinterrel_tnpoint_geo_ext(fcinfo, TINTERSECTS);
 }
 
+PGDLLEXPORT Datum Tintersects_tnpoint_npoint(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Tintersects_tnpoint_npoint);
 /**
  * @ingroup mobilitydb_temporal_spatial_rel
@@ -279,7 +310,7 @@ PG_FUNCTION_INFO_V1(Tintersects_tnpoint_npoint);
  * point and the network point
  * @sqlfunc tintersects()
  */
-PGDLLEXPORT Datum
+Datum
 Tintersects_tnpoint_npoint(PG_FUNCTION_ARGS)
 {
   return tinterrel_tnpoint_npoint_ext(fcinfo, TINTERSECTS);
@@ -289,6 +320,7 @@ Tintersects_tnpoint_npoint(PG_FUNCTION_ARGS)
  * Temporal touches
  *****************************************************************************/
 
+PGDLLEXPORT Datum Ttouches_geo_tnpoint(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Ttouches_geo_tnpoint);
 /**
  * @ingroup mobilitydb_temporal_spatial_rel
@@ -296,26 +328,31 @@ PG_FUNCTION_INFO_V1(Ttouches_geo_tnpoint);
  * the temporal network point
  * @sqlfunc ttouches()
  */
-PGDLLEXPORT Datum
+Datum
 Ttouches_geo_tnpoint(PG_FUNCTION_ARGS)
 {
+  if (PG_ARGISNULL(0) || PG_ARGISNULL(1))
+    PG_RETURN_NULL();
   GSERIALIZED *geo = PG_GETARG_GSERIALIZED_P(0);
   Temporal *temp = PG_GETARG_TEMPORAL_P(1);
   bool restr = false;
   bool atvalue = false;
-  if (PG_NARGS() == 3)
+  if (PG_NARGS() > 2 && ! PG_ARGISNULL(2))
   {
     atvalue = PG_GETARG_BOOL(2);
     restr = true;
   }
+  /* Store fcinfo into a global variable */
+  store_fcinfo(fcinfo);
   Temporal *result = ttouches_geo_tnpoint(geo, temp, restr, atvalue);
   PG_FREE_IF_COPY(geo, 0);
   PG_FREE_IF_COPY(temp, 1);
-   if (result == NULL)
+   if (! result)
     PG_RETURN_NULL();
  PG_RETURN_POINTER(result);
 }
 
+PGDLLEXPORT Datum Ttouches_npoint_tnpoint(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Ttouches_npoint_tnpoint);
 /**
  * @ingroup mobilitydb_temporal_spatial_rel
@@ -323,25 +360,30 @@ PG_FUNCTION_INFO_V1(Ttouches_npoint_tnpoint);
  * the temporal network point
  * @sqlfunc ttouches()
  */
-PGDLLEXPORT Datum
+Datum
 Ttouches_npoint_tnpoint(PG_FUNCTION_ARGS)
 {
+  if (PG_ARGISNULL(0) || PG_ARGISNULL(1))
+    PG_RETURN_NULL();
   Npoint *np = PG_GETARG_NPOINT_P(0);
   Temporal *temp = PG_GETARG_TEMPORAL_P(1);
   bool restr = false;
   bool atvalue = false;
-  if (PG_NARGS() == 3)
+  if (PG_NARGS() > 2 && ! PG_ARGISNULL(2))
   {
     atvalue = PG_GETARG_BOOL(2);
     restr = true;
   }
+  /* Store fcinfo into a global variable */
+  store_fcinfo(fcinfo);
   Temporal *result = ttouches_npoint_tnpoint(np, temp, restr, atvalue);
   PG_FREE_IF_COPY(temp, 1);
-  if (result == NULL)
+  if (! result)
     PG_RETURN_NULL();
   PG_RETURN_POINTER(result);
 }
 
+PGDLLEXPORT Datum Ttouches_tnpoint_geo(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Ttouches_tnpoint_geo);
 /**
  * @ingroup mobilitydb_temporal_spatial_rel
@@ -349,26 +391,31 @@ PG_FUNCTION_INFO_V1(Ttouches_tnpoint_geo);
  * and the geometry
  * @sqlfunc ttouches()
  */
-PGDLLEXPORT Datum
+Datum
 Ttouches_tnpoint_geo(PG_FUNCTION_ARGS)
 {
+  if (PG_ARGISNULL(0) || PG_ARGISNULL(1))
+    PG_RETURN_NULL();
   Temporal *temp = PG_GETARG_TEMPORAL_P(0);
   GSERIALIZED *geo = PG_GETARG_GSERIALIZED_P(1);
   bool restr = false;
   bool atvalue = false;
-  if (PG_NARGS() == 3)
+  if (PG_NARGS() > 2 && ! PG_ARGISNULL(2))
   {
     atvalue = PG_GETARG_BOOL(2);
     restr = true;
   }
+  /* Store fcinfo into a global variable */
+  store_fcinfo(fcinfo);
   Temporal *result = ttouches_tnpoint_geo(temp, geo, restr, atvalue);
   PG_FREE_IF_COPY(temp, 0);
   PG_FREE_IF_COPY(geo, 1);
-  if (result == NULL)
+  if (! result)
     PG_RETURN_NULL();
   PG_RETURN_POINTER(result);
 }
 
+PGDLLEXPORT Datum Ttouches_tnpoint_npoint(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Ttouches_tnpoint_npoint);
 /**
  * @ingroup mobilitydb_temporal_spatial_rel
@@ -376,21 +423,25 @@ PG_FUNCTION_INFO_V1(Ttouches_tnpoint_npoint);
  * and the network point
  * @sqlfunc ttouches()
  */
-PGDLLEXPORT Datum
+Datum
 Ttouches_tnpoint_npoint(PG_FUNCTION_ARGS)
 {
+  if (PG_ARGISNULL(0) || PG_ARGISNULL(1))
+    PG_RETURN_NULL();
   Temporal *temp = PG_GETARG_TEMPORAL_P(0);
   Npoint *np = PG_GETARG_NPOINT_P(1);
   bool restr = false;
   bool atvalue = false;
-  if (PG_NARGS() == 3)
+  if (PG_NARGS() > 2 && ! PG_ARGISNULL(2))
   {
     atvalue = PG_GETARG_BOOL(2);
     restr = true;
   }
+  /* Store fcinfo into a global variable */
+  store_fcinfo(fcinfo);
   Temporal *result = ttouches_tnpoint_npoint(temp, np, restr, atvalue);
   PG_FREE_IF_COPY(temp, 0);
-  if (result == NULL)
+  if (! result)
     PG_RETURN_NULL();
   PG_RETURN_POINTER(result);
 }
@@ -399,6 +450,7 @@ Ttouches_tnpoint_npoint(PG_FUNCTION_ARGS)
  * Temporal dwithin
  *****************************************************************************/
 
+PGDLLEXPORT Datum Tdwithin_geo_tnpoint(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Tdwithin_geo_tnpoint);
 /**
  * @ingroup mobilitydb_temporal_spatial_rel
@@ -406,15 +458,17 @@ PG_FUNCTION_INFO_V1(Tdwithin_geo_tnpoint);
  * temporal network point are within the given distance
  * @sqlfunc tdwithin()
  */
-PGDLLEXPORT Datum
+Datum
 Tdwithin_geo_tnpoint(PG_FUNCTION_ARGS)
 {
+  if (PG_ARGISNULL(0) || PG_ARGISNULL(1) || PG_ARGISNULL(2))
+    PG_RETURN_NULL();
   GSERIALIZED *geo = PG_GETARG_GSERIALIZED_P(0);
   Temporal *temp = PG_GETARG_TEMPORAL_P(1);
   double dist = PG_GETARG_FLOAT8(2);
   bool restr = false;
   bool atvalue = false;
-  if (PG_NARGS() == 4)
+  if (PG_NARGS() > 3 && ! PG_ARGISNULL(3))
   {
     atvalue = PG_GETARG_BOOL(3);
     restr = true;
@@ -422,11 +476,12 @@ Tdwithin_geo_tnpoint(PG_FUNCTION_ARGS)
   Temporal *result = tdwithin_geo_tnpoint(geo, temp, dist, restr, atvalue);
   PG_FREE_IF_COPY(geo, 0);
   PG_FREE_IF_COPY(temp, 1);
-  if (result == NULL)
+  if (! result)
     PG_RETURN_NULL();
   PG_RETURN_POINTER(result);
 }
 
+PGDLLEXPORT Datum Tdwithin_tnpoint_geo(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Tdwithin_tnpoint_geo);
 /**
  * @ingroup mobilitydb_temporal_spatial_rel
@@ -434,15 +489,17 @@ PG_FUNCTION_INFO_V1(Tdwithin_tnpoint_geo);
  * and the geometry are within the given distance
  * @sqlfunc tdwithin()
  */
-PGDLLEXPORT Datum
+Datum
 Tdwithin_tnpoint_geo(PG_FUNCTION_ARGS)
 {
+  if (PG_ARGISNULL(0) || PG_ARGISNULL(1) || PG_ARGISNULL(2))
+    PG_RETURN_NULL();
   Temporal *temp = PG_GETARG_TEMPORAL_P(0);
   GSERIALIZED *geo = PG_GETARG_GSERIALIZED_P(1);
   double dist = PG_GETARG_FLOAT8(2);
   bool restr = false;
   bool atvalue = false;
-  if (PG_NARGS() == 4)
+  if (PG_NARGS() > 3 && ! PG_ARGISNULL(3))
   {
     atvalue = PG_GETARG_BOOL(3);
     restr = true;
@@ -450,11 +507,12 @@ Tdwithin_tnpoint_geo(PG_FUNCTION_ARGS)
   Temporal *result = tdwithin_tnpoint_geo(temp, geo, dist, restr, atvalue);
   PG_FREE_IF_COPY(temp, 0);
   PG_FREE_IF_COPY(geo, 1);
-  if (result == NULL)
+  if (! result)
     PG_RETURN_NULL();
   PG_RETURN_POINTER(result);
 }
 
+PGDLLEXPORT Datum Tdwithin_npoint_tnpoint(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Tdwithin_npoint_tnpoint);
 /**
  * @ingroup mobilitydb_temporal_spatial_rel
@@ -462,26 +520,29 @@ PG_FUNCTION_INFO_V1(Tdwithin_npoint_tnpoint);
  * temporal network point are within the given distance
  * @sqlfunc tdwithin()
  */
-PGDLLEXPORT Datum
+Datum
 Tdwithin_npoint_tnpoint(PG_FUNCTION_ARGS)
 {
+  if (PG_ARGISNULL(0) || PG_ARGISNULL(1) || PG_ARGISNULL(2))
+    PG_RETURN_NULL();
   Npoint *np  = PG_GETARG_NPOINT_P(0);
   Temporal *temp = PG_GETARG_TEMPORAL_P(1);
   double dist = PG_GETARG_FLOAT8(2);
   bool restr = false;
   bool atvalue = false;
-  if (PG_NARGS() == 4)
+  if (PG_NARGS() > 3 && ! PG_ARGISNULL(3))
   {
     atvalue = PG_GETARG_BOOL(3);
     restr = true;
   }
   Temporal *result = tdwithin_npoint_tnpoint(np, temp, dist, restr, atvalue);
   PG_FREE_IF_COPY(temp, 1);
-  if (result == NULL)
+  if (! result)
     PG_RETURN_NULL();
   PG_RETURN_POINTER(result);
 }
 
+PGDLLEXPORT Datum Tdwithin_tnpoint_npoint(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Tdwithin_tnpoint_npoint);
 /**
  * @ingroup mobilitydb_temporal_spatial_rel
@@ -489,26 +550,29 @@ PG_FUNCTION_INFO_V1(Tdwithin_tnpoint_npoint);
  * and the network point are within the given distance
  * @sqlfunc tdwithin()
  */
-PGDLLEXPORT Datum
+Datum
 Tdwithin_tnpoint_npoint(PG_FUNCTION_ARGS)
 {
+  if (PG_ARGISNULL(0) || PG_ARGISNULL(1) || PG_ARGISNULL(2))
+    PG_RETURN_NULL();
   Temporal *temp = PG_GETARG_TEMPORAL_P(0);
   Npoint *np  = PG_GETARG_NPOINT_P(1);
   double dist = PG_GETARG_FLOAT8(2);
   bool restr = false;
   bool atvalue = false;
-  if (PG_NARGS() == 4)
+  if (PG_NARGS() > 3 && ! PG_ARGISNULL(3))
   {
     atvalue = PG_GETARG_BOOL(3);
     restr = true;
   }
   Temporal *result = tdwithin_tnpoint_npoint(temp, np, dist, restr, atvalue);
   PG_FREE_IF_COPY(temp, 0);
-  if (result == NULL)
+  if (! result)
     PG_RETURN_NULL();
   PG_RETURN_POINTER(result);
 }
 
+PGDLLEXPORT Datum Tdwithin_tnpoint_tnpoint(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Tdwithin_tnpoint_tnpoint);
 /**
  * @ingroup mobilitydb_temporal_spatial_rel
@@ -516,15 +580,17 @@ PG_FUNCTION_INFO_V1(Tdwithin_tnpoint_tnpoint);
  * are within the given distance
  * @sqlfunc tdwithin()
  */
-PGDLLEXPORT Datum
+Datum
 Tdwithin_tnpoint_tnpoint(PG_FUNCTION_ARGS)
 {
+  if (PG_ARGISNULL(0) || PG_ARGISNULL(1) || PG_ARGISNULL(2))
+    PG_RETURN_NULL();
   Temporal *temp1 = PG_GETARG_TEMPORAL_P(0);
   Temporal *temp2 = PG_GETARG_TEMPORAL_P(1);
   double dist = PG_GETARG_FLOAT8(2);
   bool restr = false;
   bool atvalue = false;
-  if (PG_NARGS() == 4)
+  if (PG_NARGS() > 3 && ! PG_ARGISNULL(3))
   {
     atvalue = PG_GETARG_BOOL(3);
     restr = true;
@@ -533,7 +599,7 @@ Tdwithin_tnpoint_tnpoint(PG_FUNCTION_ARGS)
     atvalue);
   PG_FREE_IF_COPY(temp1, 0);
   PG_FREE_IF_COPY(temp2, 1);
-  if (result == NULL)
+  if (! result)
     PG_RETURN_NULL();
   PG_RETURN_POINTER(result);
 }

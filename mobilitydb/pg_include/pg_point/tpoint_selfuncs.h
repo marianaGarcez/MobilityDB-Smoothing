@@ -1,12 +1,12 @@
 /*****************************************************************************
  *
  * This MobilityDB code is provided under The PostgreSQL License.
- * Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+ * Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
  * contributors
  *
  * MobilityDB includes portions of PostGIS version 3 source code released
  * under the GNU General Public License (GPLv2 or later).
- * Copyright (c) 2001-2022, PostGIS contributors
+ * Copyright (c) 2001-2023, PostGIS contributors
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written
@@ -23,7 +23,7 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
  * AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
- * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  *****************************************************************************/
 
@@ -38,9 +38,10 @@
 #include <postgres.h>
 #include <catalog/pg_statistic.h>
 #include <utils/selfuncs.h>
-/* MobilityDB */
-#include "general/temporal_catalog.h"
+/* MEOS */
+#include "general/meos_catalog.h"
 #include "point/tpoint.h"
+/* MobilityDB */
 #include "pg_point/tpoint_analyze.h"
 
 /**
@@ -93,12 +94,13 @@
 
 /*****************************************************************************/
 
-extern float8 tpoint_sel(PlannerInfo *root, Oid operid, List *args,
-  int varRelid, TemporalFamily tempfamily);
+extern ND_STATS *pg_nd_stats_from_tuple(HeapTuple stats_tuple, int mode);
+extern ND_STATS *pg_get_nd_stats(const Oid tableid, AttrNumber att_num,
+  int mode, bool only_parent);
 
-extern float8 tpoint_joinsel(PlannerInfo *root, Oid operid, List *args,
-  JoinType jointype, SpecialJoinInfo *sjinfo, int mode,
-  TemporalFamily tempFamily);
+extern float8 geo_sel(VariableStatData *vardata, const STBox *box,
+  meosOper oper);
+extern float8 geo_joinsel(const ND_STATS *s1, const ND_STATS *s2);
 
 /*****************************************************************************/
 

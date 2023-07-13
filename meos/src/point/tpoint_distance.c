@@ -1,12 +1,12 @@
 /***********************************************************************
  *
  * This MobilityDB code is provided under The PostgreSQL License.
- * Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+ * Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
  * contributors
  *
  * MobilityDB includes portions of PostGIS version 3 source code released
  * under the GNU General Public License (GPLv2 or later).
- * Copyright (c) 2001-2022, PostGIS contributors
+ * Copyright (c) 2001-2023, PostGIS contributors
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written
@@ -23,11 +23,12 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
  * AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
- * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  *****************************************************************************/
 
 /**
+ * @file
  * @brief Distance functions for temporal points.
  */
 
@@ -43,31 +44,77 @@
 #include <lwgeodetic_tree.h>
 #include <measures.h>
 #include <measures3d.h>
-/* MobilityDB */
+/* MEOS */
 #include <meos.h>
 #include <meos_internal.h>
 #include "general/lifting.h"
 #include "general/temporaltypes.h"
-#include "general/temporal_util.h"
+#include "general/type_util.h"
 #include "point/pgis_call.h"
 #include "point/geography_funcs.h"
 #include "point/tpoint.h"
 #include "point/tpoint_spatialfuncs.h"
 
+/*****************************************************************************
+ * Compute the distance between two instants depending on their type
+ *****************************************************************************/
+
+/**
+ * @brief Compute the distance between two temporal instants.
+ * @param[in] inst1,inst2 Temporal instants
+ */
+double
+tnumberinst_distance(const TInstant *inst1, const TInstant *inst2)
+{
+  double result = fabs(tnumberinst_double(inst1) - tnumberinst_double(inst2));
+  return result;
+}
+
+/**
+ * @brief Compute the distance between two temporal instants.
+ * @param[in] inst1,inst2 Temporal instants
+ * @param[in] func Distance function
+ */
+double
+tpointinst_distance(const TInstant *inst1, const TInstant *inst2,
+  datum_func2 func)
+{
+  Datum value1 = tinstant_value(inst1);
+  Datum value2 = tinstant_value(inst2);
+  double result = DatumGetFloat8(func(value1, value2));
+  return result;
+}
+
+/**
+ * @brief Compute the distance between two temporal instants.
+ * @param[in] inst1,inst2 Temporal instants
+ * @param[in] func Distance function
+ */
+double
+tinstant_distance(const TInstant *inst1, const TInstant *inst2,
+  datum_func2 func)
+{
+  assert (tnumber_type(inst1->temptype) || tgeo_type(inst1->temptype));
+  if (tnumber_type(inst1->temptype))
+    return tnumberinst_distance(inst1, inst2);
+  else /* tgeo_type(inst1->temptype) */
+    return tpointinst_distance(inst1, inst2, func);
+}
+
 /*****************************************************************************/
 
 /**
- * Return the distance between the two geometries. When the first geometry
- * is a segment it also computes a value between 0 and 1 that represents
- * the location in the segment of the closest point to the second geometry,
- * as a fraction of total segment length.
+ * @brief Return the distance between the two geometries. When the first
+ * geometry is a segment it also computes a value between 0 and 1 that
+ * represents the location in the segment of the closest point to the second
+ * geometry, as a fraction of total segment length.
  *
  * @note Function inspired by PostGIS function lw_dist2d_distancepoint
  * from measures.c
  */
 static double
 lw_distance_fraction(const LWGEOM *lw1, const LWGEOM *lw2, int mode,
-  long double *fraction)
+  double *fraction)
 {
   double result;
   if (FLAGS_GET_GEODETIC(lw1->flags))
@@ -147,13 +194,13 @@ lw_distance_fraction(const LWGEOM *lw1, const LWGEOM *lw2, int mode,
  *****************************************************************************/
 
 /**
- * Return the value and timestamp at which the a temporal point segment and
- * a point are at the minimum distance. These are the turning points when
+ * @brief Return the value and timestamp at which the a temporal point segment
+ * and a point are at the minimum distance. These are the turning points when
  * computing the temporal distance.
  *
  * @param[in] start,end Instants defining the first segment
  * @param[in] point Base point
- * @param[in] basetype Base point
+ * @param[in] basetype Base type
  * @param[out] value Projected value at turning point
  * @param[out] t Timestamp at turning point
  * @pre The segment is not constant.
@@ -161,15 +208,15 @@ lw_distance_fraction(const LWGEOM *lw1, const LWGEOM *lw2, int mode,
  */
 static bool
 tpoint_geo_min_dist_at_timestamp(const TInstant *start, const TInstant *end,
-  Datum point, mobdbType basetype __attribute__((unused)), Datum *value,
+  Datum point, meosType basetype __attribute__((unused)), Datum *value,
   TimestampTz *t)
 {
   long double duration = (long double) (end->t - start->t);
   Datum value1 = tinstant_value(start);
   Datum value2 = tinstant_value(end);
   double dist;
-  long double fraction = geosegm_locate_point(value1, value2, point, &dist);
-  if (fraction <= MOBDB_EPSILON || fraction >= (1.0 - MOBDB_EPSILON))
+  double fraction = geosegm_locate_point(value1, value2, point, &dist);
+  if (fraction <= MEOS_EPSILON || fraction >= (1.0 - MEOS_EPSILON))
     return false;
   *value = Float8GetDatum(dist);
   *t = start->t + (TimestampTz) (duration * fraction);
@@ -180,26 +227,27 @@ tpoint_geo_min_dist_at_timestamp(const TInstant *start, const TInstant *end,
  * @brief Compute d/dx (Euclidean distance) = 0 for two 2D segments
  */
 static bool
-point2d_min_dist(const POINT2D *p1, const POINT2D *p2,
-  const POINT2D *p3, const POINT2D *p4, double *fraction)
+point2d_min_dist(const POINT2D *p1, const POINT2D *p2, const POINT2D *p3,
+  const POINT2D *p4, double *fraction)
 {
   long double denum, dx1, dy1, dx2, dy2, f1, f2, f3, f4;
 
-    dx1 = p2->x - p1->x;
-    dy1 = p2->y - p1->y;
-    dx2 = p4->x - p3->x;
-    dy2 = p4->y - p3->y;
+  dx1 = p2->x - p1->x;
+  dy1 = p2->y - p1->y;
+  dx2 = p4->x - p3->x;
+  dy2 = p4->y - p3->y;
 
-    f1 = p3->x * (dx1 - dx2);
-    f2 = p1->x * (dx2 - dx1);
-    f3 = p3->y * (dy1 - dy2);
-    f4 = p1->y * (dy2 - dy1);
+  f1 = p3->x * (dx1 - dx2);
+  f2 = p1->x * (dx2 - dx1);
+  f3 = p3->y * (dy1 - dy2);
+  f4 = p1->y * (dy2 - dy1);
 
-   denum = dx1*(dx1-2*dx2) + dy1*(dy1-2*dy2) + dy2*dy2 + dx2*dx2;
+  denum = dx1 * (dx1 - 2 * dx2) + dy1 * (dy1 - 2 * dy2) + dy2 * dy2 +
+    dx2 * dx2;
   if (denum == 0)
     return false;
 
-  *fraction = (double) ((f1 + f2 + f3 + f4) / denum);
+  *fraction = (f1 + f2 + f3 + f4) / denum;
   return true;
 }
 
@@ -207,8 +255,8 @@ point2d_min_dist(const POINT2D *p1, const POINT2D *p2,
  * @brief Compute d/dx (Euclidean distance) = 0 for two 3D segments
  */
 static bool
-point3d_min_dist(const POINT3DZ *p1, const POINT3DZ *p2,
-  const POINT3DZ *p3, const POINT3DZ *p4, double *fraction)
+point3d_min_dist(const POINT3DZ *p1, const POINT3DZ *p2, const POINT3DZ *p3,
+  const POINT3DZ *p4, double *fraction)
 {
   long double denum, dx1, dy1, dz1, dx2, dy2, dz2, f1, f2, f3, f4, f5, f6;
 
@@ -226,18 +274,18 @@ point3d_min_dist(const POINT3DZ *p1, const POINT3DZ *p2,
   f5 = p3->z * (dz1 - dz2);
   f6 = p1->z * (dz2 - dz1);
 
-  denum = dx1*(dx1-2*dx2) + dy1*(dy1-2*dy2) + dz1*(dz1-2*dz2) +
-    dx2*dx2 + dy2*dy2 + dz2*dz2;
+  denum = dx1 * (dx1 - 2 * dx2) + dy1 * (dy1 - 2 * dy2) +
+    dz1 * (dz1 - 2 * dz2) + dx2 * dx2 + dy2 * dy2 + dz2 * dz2;
   if (denum == 0)
     return false;
 
-  *fraction = (double) ((f1 + f2 + f3 + f4 + f5 + f6) / denum);
+  *fraction = (f1 + f2 + f3 + f4 + f5 + f6) / denum;
   return true;
 }
 
 /**
- * Return the value and timestamp at which the two temporal geometric point
- * segments are at the minimum distance. These are the turning points
+ * @brief Return the value and timestamp at which the two temporal geometric
+ * point segments are at the minimum distance. These are the turning points
  * when computing the temporal distance.
  *
  * @param[in] start1,end1 Instants defining the first segment
@@ -257,31 +305,31 @@ tgeompoint_min_dist_at_timestamp(const TInstant *start1, const TInstant *end1,
   const TInstant *start2, const TInstant *end2, Datum *value, TimestampTz *t)
 {
   double fraction;
-  long double duration = (long double) (end1->t - start1->t);
-
-  bool hasz = MOBDB_FLAGS_GET_Z(start1->flags);
+  bool hasz = MEOS_FLAGS_GET_Z(start1->flags);
   if (hasz) /* 3D */
   {
-    const POINT3DZ *p1 = datum_point3dz_p(tinstant_value(start1));
-    const POINT3DZ *p2 = datum_point3dz_p(tinstant_value(end1));
-    const POINT3DZ *p3 = datum_point3dz_p(tinstant_value(start2));
-    const POINT3DZ *p4 = datum_point3dz_p(tinstant_value(end2));
+    const POINT3DZ *p1 = DATUM_POINT3DZ_P(tinstant_value(start1));
+    const POINT3DZ *p2 = DATUM_POINT3DZ_P(tinstant_value(end1));
+    const POINT3DZ *p3 = DATUM_POINT3DZ_P(tinstant_value(start2));
+    const POINT3DZ *p4 = DATUM_POINT3DZ_P(tinstant_value(end2));
     bool found = point3d_min_dist(p1, p2, p3, p4, &fraction);
     if (!found)
       return false;
   }
   else /* 2D */
   {
-    const POINT2D *p1 = datum_point2d_p(tinstant_value(start1));
-    const POINT2D *p2 = datum_point2d_p(tinstant_value(end1));
-    const POINT2D *p3 = datum_point2d_p(tinstant_value(start2));
-    const POINT2D *p4 = datum_point2d_p(tinstant_value(end2));
+    const POINT2D *p1 = DATUM_POINT2D_P(tinstant_value(start1));
+    const POINT2D *p2 = DATUM_POINT2D_P(tinstant_value(end1));
+    const POINT2D *p3 = DATUM_POINT2D_P(tinstant_value(start2));
+    const POINT2D *p4 = DATUM_POINT2D_P(tinstant_value(end2));
     bool found = point2d_min_dist(p1, p2, p3, p4, &fraction);
     if (!found)
       return false;
   }
-  if (fraction <= MOBDB_EPSILON || fraction >= (1.0 - MOBDB_EPSILON))
+  if (fraction <= MEOS_EPSILON || fraction >= (1.0 - MEOS_EPSILON))
     return false;
+
+  double duration = end1->t - start1->t;
   *t = start1->t + (TimestampTz) (duration * fraction);
   /* We know that this function is called only for linear segments */
   Datum value1 = tsegment_value_at_timestamp(start1, end1, true, *t);
@@ -292,8 +340,8 @@ tgeompoint_min_dist_at_timestamp(const TInstant *start1, const TInstant *end1,
 }
 
 /**
- * Return the single timestamp at which the two temporal geographic point
- * segments are at the minimum distance. These are the turning points
+ * @brief Return the single timestamp at which the two temporal geographic
+ * point segments are at the minimum distance. These are the turning points
  * when computing the temporal distance.
  *
  * @param[in] start1,end1 Instants defining the first segment
@@ -306,10 +354,10 @@ static bool
 tgeogpoint_min_dist_at_timestamp(const TInstant *start1, const TInstant *end1,
   const TInstant *start2, const TInstant *end2, Datum *mindist, TimestampTz *t)
 {
-  const POINT2D *p1 = datum_point2d_p(tinstant_value(start1));
-  const POINT2D *p2 = datum_point2d_p(tinstant_value(end1));
-  const POINT2D *p3 = datum_point2d_p(tinstant_value(start2));
-  const POINT2D *p4 = datum_point2d_p(tinstant_value(end2));
+  const POINT2D *p1 = DATUM_POINT2D_P(tinstant_value(start1));
+  const POINT2D *p2 = DATUM_POINT2D_P(tinstant_value(end1));
+  const POINT2D *p3 = DATUM_POINT2D_P(tinstant_value(start2));
+  const POINT2D *p4 = DATUM_POINT2D_P(tinstant_value(end2));
   GEOGRAPHIC_EDGE e1, e2;
   GEOGRAPHIC_POINT close1, close2;
   POINT3D A1, A2, B1, B2;
@@ -326,10 +374,10 @@ tgeogpoint_min_dist_at_timestamp(const TInstant *start1, const TInstant *end1,
   {
     /* We know that the distance is 0 */
     if (mindist)
-      *mindist = 0.0;
+      *mindist = Float8GetDatum(0.0);
     bool found = point3d_min_dist((const POINT3DZ *) &A1, (const POINT3DZ *) &A2,
       (const POINT3DZ *) &B1, (const POINT3DZ *) &B2, &fraction);
-    if (!found)
+    if (! found)
       return false;
   }
   else
@@ -341,23 +389,24 @@ tgeogpoint_min_dist_at_timestamp(const TInstant *start1, const TInstant *end1,
       return false;
     /* Compute distance between closest points */
     if (mindist)
-      *mindist = WGS84_RADIUS * sphere_distance(&close1, &close2);
+      *mindist = Float8GetDatum(WGS84_RADIUS * sphere_distance(&close1,
+        &close2));
     /* Compute distance from beginning of the segment to one closest point */
     long double seglength = sphere_distance(&(e1.start), &(e1.end));
     long double length = sphere_distance(&(e1.start), &close1);
-    fraction = length / seglength;
+    fraction = (double) (length / seglength);
   }
 
-  if (fraction <= MOBDB_EPSILON || fraction >= (1.0 - MOBDB_EPSILON))
+  if (fraction <= MEOS_EPSILON || fraction >= (1.0 - MEOS_EPSILON))
     return false;
-  long double duration = (long double) (end1->t - start1->t);
+  double duration = (double) (end1->t - start1->t);
   *t = start1->t + (TimestampTz) (duration * fraction);
   return true;
 }
 
 /**
- * Return the value and timestamp at which the two temporal point segments
- * are at the minimum distance.
+ * @brief Return the value and timestamp at which the two temporal point
+ * segments are at the minimum distance.
  *
  * @param[in] start1,end1 Instants defining the first segment
  * @param[in] start2,end2 Instants defining the second segment
@@ -369,7 +418,7 @@ static bool
 tpoint_min_dist_at_timestamp(const TInstant *start1, const TInstant *end1,
   const TInstant *start2, const TInstant *end2, Datum *value, TimestampTz *t)
 {
-  if (MOBDB_FLAGS_GET_GEODETIC(start1->flags))
+  if (MEOS_FLAGS_GET_GEODETIC(start1->flags))
     /* The distance output parameter is not used here */
     return tgeogpoint_min_dist_at_timestamp(start1, end1, start2, end2, value, t);
   else
@@ -399,7 +448,7 @@ distance_tpoint_geo(const Temporal *temp, const GSERIALIZED *geo)
   lfinfo.numparam = 0;
   lfinfo.argtype[0] = lfinfo.argtype[1] = temptype_basetype(temp->temptype);
   lfinfo.restype = T_TFLOAT;
-  lfinfo.reslinear = MOBDB_FLAGS_GET_LINEAR(temp->flags);
+  lfinfo.reslinear = MEOS_FLAGS_GET_LINEAR(temp->flags);
   lfinfo.invert = INVERT_NO;
   lfinfo.discont = CONTINUOUS;
   lfinfo.tpfunc_base = lfinfo.reslinear ?
@@ -425,8 +474,8 @@ distance_tpoint_tpoint(const Temporal *temp1, const Temporal *temp2)
   lfinfo.func = (varfunc) pt_distance_fn(temp1->flags);
   lfinfo.numparam = 0;
   lfinfo.restype = T_TFLOAT;
-  lfinfo.reslinear = MOBDB_FLAGS_GET_LINEAR(temp1->flags) ||
-    MOBDB_FLAGS_GET_LINEAR(temp2->flags);
+  lfinfo.reslinear = MEOS_FLAGS_GET_LINEAR(temp1->flags) ||
+    MEOS_FLAGS_GET_LINEAR(temp2->flags);
   lfinfo.invert = INVERT_NO;
   lfinfo.discont = CONTINUOUS;
   lfinfo.tpfunc_base = NULL;
@@ -440,9 +489,9 @@ distance_tpoint_tpoint(const Temporal *temp1, const Temporal *temp2)
  *****************************************************************************/
 
 /**
- * Return the new current nearest approach instant between the temporal
- * sequence point with stepwise interpolation and a geometry/geography
- *
+ * @brief Return the new current nearest approach instant between the temporal
+ * sequence point with step interpolation and a geometry/geography
+ * (iterator function)
  * @param[in] seq Temporal point
  * @param[in] geo Geometry/geography
  * @param[in] mindist Current minimum distance, it is set at DBL_MAX at the
@@ -452,12 +501,12 @@ distance_tpoint_tpoint(const Temporal *temp1, const Temporal *temp2)
  * @result Minimum distance
  */
 static double
-NAI_tpointseq_discstep_geo1(const TSequence *seq, const LWGEOM *geo,
+NAI_tpointseq_discstep_geo_iter(const TSequence *seq, const LWGEOM *geo,
   double mindist, const TInstant **result)
 {
   for (int i = 0; i < seq->count; i++)
   {
-    const TInstant *inst = tsequence_inst_n(seq, i);
+    const TInstant *inst = TSEQUENCE_INST_N(seq, i);
     Datum value = tinstant_value(inst);
     GSERIALIZED *gs = DatumGetGserializedP(value);
     LWGEOM *point = lwgeom_from_gserialized(gs);
@@ -473,24 +522,22 @@ NAI_tpointseq_discstep_geo1(const TSequence *seq, const LWGEOM *geo,
 }
 
 /**
- * Return the nearest approach instant between the temporal sequence
- * point with stepwise interpolation and a geometry/geography
- *
+ * @brief Return the nearest approach instant between the temporal sequence
+ * point with step interpolation and a geometry/geography
  * @param[in] seq Temporal point
  * @param[in] geo Geometry/geography
  */
 static TInstant *
 NAI_tpointseq_discstep_geo(const TSequence *seq, const LWGEOM *geo)
 {
-  const TInstant *inst;
-  NAI_tpointseq_discstep_geo1(seq, geo, DBL_MAX, &inst);
+  const TInstant *inst = NULL; /* make compiler quiet */
+  NAI_tpointseq_discstep_geo_iter(seq, geo, DBL_MAX, &inst);
   return tinstant_copy(inst);
 }
 
 /**
- * Return the nearest approach instant between the temporal sequence set
- * point with stepwise interpolation and a geometry/geography
- *
+ * @brief Return the nearest approach instant between the temporal sequence set
+ * point with step interpolation and a geometry/geography
  * @param[in] ss Temporal point
  * @param[in] geo Geometry/geography
  */
@@ -501,8 +548,8 @@ NAI_tpointseqset_step_geo(const TSequenceSet *ss, const LWGEOM *geo)
   double mindist = DBL_MAX;
   for (int i = 0; i < ss->count; i++)
   {
-    const TSequence *seq = tsequenceset_seq_n(ss, i);
-    mindist = NAI_tpointseq_discstep_geo1(seq, geo, mindist, &inst);
+    const TSequence *seq = TSEQUENCESET_SEQ_N(ss, i);
+    mindist = NAI_tpointseq_discstep_geo_iter(seq, geo, mindist, &inst);
   }
   assert(inst != NULL);
   return tinstant_copy(inst);
@@ -511,10 +558,9 @@ NAI_tpointseqset_step_geo(const TSequenceSet *ss, const LWGEOM *geo)
 /*****************************************************************************/
 
 /**
- * Return the distance and the timestamp of the nearest approach instant
+ * @brief Return the distance and the timestamp of the nearest approach instant
  * between the temporal sequence point with linear interpolation and the
  * geometry/geography
- *
  * @param[in] inst1,inst2 Temporal segment
  * @param[in] geo Geometry/geography
  * @param[out] t Timestamp
@@ -527,7 +573,7 @@ NAI_tpointsegm_linear_geo1(const TInstant *inst1, const TInstant *inst2,
   Datum value1 = tinstant_value(inst1);
   Datum value2 = tinstant_value(inst2);
   double dist;
-  long double fraction;
+  double fraction;
 
   /* Constant segment */
   if (datum_point_eq(value1, value2))
@@ -545,34 +591,33 @@ NAI_tpointsegm_linear_geo1(const TInstant *inst1, const TInstant *inst2,
   dist = lw_distance_fraction(line, geo, DIST_MIN, &fraction);
   lwgeom_free(line);
 
-  if (fabsl(fraction) < MOBDB_EPSILON)
+  if (fabsl(fraction) < MEOS_EPSILON)
     *t = inst1->t;
-  else if (fabsl(fraction - 1.0) < MOBDB_EPSILON)
+  else if (fabsl(fraction - 1.0) < MEOS_EPSILON)
     *t = inst2->t;
   else
   {
-    double duration = (inst2->t - inst1->t);
+    double duration = (double) (inst2->t - inst1->t);
     *t = inst1->t + (TimestampTz) (duration * fraction);
   }
   return dist;
 }
 
 /**
- * Return the distance and the timestamp of the nearest approach instant
+ * @brief Return the distance and the timestamp of the nearest approach instant
  * between the temporal sequence point with linear interpolation and the
- * geometry/geography
- *
+ * geometry/geography (iterator function)
  * @param[in] seq Temporal point
  * @param[in] geo Geometry/geography
  * @param[in] mindist Minimum distance found so far, or DBL_MAX at the beginning
  * @param[out] t Timestamp
  */
 static double
-NAI_tpointseq_linear_geo2(const TSequence *seq, const LWGEOM *geo,
+NAI_tpointseq_linear_geo_iter(const TSequence *seq, const LWGEOM *geo,
   double mindist, TimestampTz *t)
 {
   double dist;
-  const TInstant *inst1 = tsequence_inst_n(seq, 0);
+  const TInstant *inst1 = TSEQUENCE_INST_N(seq, 0);
 
   if (seq->count == 1)
   {
@@ -594,7 +639,7 @@ NAI_tpointseq_linear_geo2(const TSequence *seq, const LWGEOM *geo,
     TimestampTz t1;
     for (int i = 0; i < seq->count - 1; i++)
     {
-      const TInstant *inst2 = tsequence_inst_n(seq, i + 1);
+      const TInstant *inst2 = TSEQUENCE_INST_N(seq, i + 1);
       dist = NAI_tpointsegm_linear_geo1(inst1, inst2, geo, &t1);
       if (dist < mindist)
       {
@@ -610,37 +655,36 @@ NAI_tpointseq_linear_geo2(const TSequence *seq, const LWGEOM *geo,
 }
 
 /**
- * Return the nearest approach instant between the temporal sequence
- * point with linear interpolation and a geometry
+ * @brief Return the nearest approach instant between the temporal sequence
+ * point with linear interpolation and a geometry (iterator function)
  */
 static TInstant *
 NAI_tpointseq_linear_geo(const TSequence *seq, const LWGEOM *geo)
 {
   TimestampTz t;
-  NAI_tpointseq_linear_geo2(seq, geo, DBL_MAX, &t);
+  NAI_tpointseq_linear_geo_iter(seq, geo, DBL_MAX, &t);
   /* The closest point may be at an exclusive bound */
   Datum value;
-  bool found = tsequence_value_at_timestamp(seq, t, false, &value);
-  assert(found);
+  tsequence_value_at_timestamp(seq, t, false, &value);
   TInstant *result = tinstant_make(value, seq->temptype, t);
   pfree(DatumGetPointer(value));
   return result;
 }
 
 /**
- * Return the nearest approach instant between the temporal sequence set
+ * @brief Return the nearest approach instant between the temporal sequence set
  * point with linear interpolation and a geometry
  */
 static TInstant *
 NAI_tpointseqset_linear_geo(const TSequenceSet *ss, const LWGEOM *geo)
 {
-  TimestampTz t;
+  TimestampTz t = 0; /* make compiler quiet */
   double mindist = DBL_MAX;
   for (int i = 0; i < ss->count; i++)
   {
-    const TSequence *seq = tsequenceset_seq_n(ss, i);
+    const TSequence *seq = TSEQUENCESET_SEQ_N(ss, i);
     TimestampTz t1;
-    double dist = NAI_tpointseq_linear_geo2(seq, geo, mindist, &t1);
+    double dist = NAI_tpointseq_linear_geo_iter(seq, geo, mindist, &t1);
     if (dist < mindist)
     {
       mindist = dist;
@@ -651,8 +695,7 @@ NAI_tpointseqset_linear_geo(const TSequenceSet *ss, const LWGEOM *geo)
   }
   /* The closest point may be at an exclusive bound. */
   Datum value;
-  bool found = tsequenceset_value_at_timestamp(ss, t, false, &value);
-  assert(found);
+  tsequenceset_value_at_timestamp(ss, t, false, &value);
   TInstant *result = tinstant_make(value, ss->temptype, t);
   pfree(DatumGetPointer(value));
   return result;
@@ -676,15 +719,15 @@ nai_tpoint_geo(const Temporal *temp, const GSERIALIZED *gs)
 
   LWGEOM *geo = lwgeom_from_gserialized(gs);
   TInstant *result;
-  ensure_valid_tempsubtype(temp->subtype);
+  assert(temptype_subtype(temp->subtype));
   if (temp->subtype == TINSTANT)
     result = tinstant_copy((TInstant *) temp);
   else if (temp->subtype == TSEQUENCE)
-    result = MOBDB_FLAGS_GET_LINEAR(temp->flags) ?
+    result = MEOS_FLAGS_GET_LINEAR(temp->flags) ?
       NAI_tpointseq_linear_geo((TSequence *) temp, geo) :
       NAI_tpointseq_discstep_geo((TSequence *) temp, geo);
   else /* temp->subtype == TSEQUENCESET */
-    result = MOBDB_FLAGS_GET_LINEAR(temp->flags) ?
+    result = MEOS_FLAGS_GET_LINEAR(temp->flags) ?
       NAI_tpointseqset_linear_geo((TSequenceSet *) temp, geo) :
       NAI_tpointseqset_step_geo((TSequenceSet *) temp, geo);
   lwgeom_free(geo);
@@ -706,10 +749,9 @@ nai_tpoint_tpoint(const Temporal *temp1, const Temporal *temp2)
   if (dist != NULL)
   {
     const TInstant *min = temporal_min_instant(dist);
-    /* The closest point may be at an exclusive bound. */
+    /* The closest point may be at an exclusive bound => 3rd argument = false */
     Datum value;
-    bool found = temporal_value_at_timestamp(temp1, min->t, false, &value);
-    assert(found);
+    temporal_value_at_timestamp(temp1, min->t, false, &value);
     result = tinstant_make(value, temp1->temptype, min->t);
     pfree(dist); pfree(DatumGetPointer(value));
   }
@@ -747,7 +789,7 @@ nad_tpoint_geo(const Temporal *temp, const GSERIALIZED *gs)
  * @sqlop @p |=|
  */
 double
-nad_stbox_geo(const STBOX *box, const GSERIALIZED *gs)
+nad_stbox_geo(const STBox *box, const GSERIALIZED *gs)
 {
   if (gserialized_is_empty(gs))
     return -1;
@@ -767,16 +809,16 @@ nad_stbox_geo(const STBOX *box, const GSERIALIZED *gs)
  * @sqlop @p |=|
  */
 double
-nad_stbox_stbox(const STBOX *box1, const STBOX *box2)
+nad_stbox_stbox(const STBox *box1, const STBox *box2)
 {
   /* Test the validity of the arguments */
   ensure_has_X_stbox(box1); ensure_has_X_stbox(box2);
   ensure_same_geodetic(box1->flags, box2->flags);
   ensure_same_spatial_dimensionality(box1->flags, box2->flags);
-  ensure_same_srid_stbox(box1, box2);
+  ensure_same_srid(stbox_srid(box1), stbox_srid(box2));
 
   /* If the boxes do not intersect in the time dimension return infinity */
-  bool hast = MOBDB_FLAGS_GET_T(box1->flags) && MOBDB_FLAGS_GET_T(box2->flags);
+  bool hast = MEOS_FLAGS_GET_T(box1->flags) && MEOS_FLAGS_GET_T(box2->flags);
   if (hast && ! overlaps_span_span(&box1->period, &box2->period))
       return DBL_MAX;
 
@@ -802,16 +844,16 @@ nad_stbox_stbox(const STBOX *box1, const STBOX *box2)
  * @sqlop @p |=|
  */
 double
-nad_tpoint_stbox(const Temporal *temp, const STBOX *box)
+nad_tpoint_stbox(const Temporal *temp, const STBox *box)
 {
   /* Test the validity of the arguments */
   ensure_has_X_stbox(box);
   ensure_same_geodetic(temp->flags, box->flags);
   ensure_same_spatial_dimensionality_temp_box(temp->flags, box->flags);
-  ensure_same_srid_tpoint_stbox(temp, box);
+  ensure_same_srid(tpoint_srid(temp), stbox_srid(box));
   /* Project the temporal point to the timespan of the box */
-  bool hast = MOBDB_FLAGS_GET_T(box->flags);
-  Period p, inter;
+  bool hast = MEOS_FLAGS_GET_T(box->flags);
+  Span p, inter;
   if (hast)
   {
     temporal_set_period(temp, &p);
@@ -873,7 +915,7 @@ shortestline_tpoint_geo(const Temporal *temp, const GSERIALIZED *gs,
   if (gserialized_is_empty(gs))
     return false;
   ensure_same_srid(tpoint_srid(temp), gserialized_get_srid(gs));
-  bool geodetic = MOBDB_FLAGS_GET_GEODETIC(temp->flags);
+  bool geodetic = MEOS_FLAGS_GET_GEODETIC(temp->flags);
   if (geodetic)
     ensure_has_not_Z_gs(gs);
   ensure_same_dimensionality_tpoint_gs(temp, gs);
@@ -883,11 +925,11 @@ shortestline_tpoint_geo(const Temporal *temp, const GSERIALIZED *gs,
     *result = geography_shortestline_internal(traj, gs, true);
   else
   {
-    *result = MOBDB_FLAGS_GET_Z(temp->flags) ?
+    *result = MEOS_FLAGS_GET_Z(temp->flags) ?
       gserialized_shortestline3d(traj, gs) :
       gserialized_shortestline2d(traj, gs);
   }
-  pfree(DatumGetPointer(traj));
+  pfree(traj);
   return true;
 }
 
@@ -909,10 +951,8 @@ shortestline_tpoint_tpoint(const Temporal *temp1, const Temporal *temp2,
   const TInstant *inst = temporal_min_instant(dist);
   /* Timestamp t may be at an exclusive bound */
   Datum value1, value2;
-  bool found1 = temporal_value_at_timestamp(temp1, inst->t, false, &value1);
-  bool found2 = temporal_value_at_timestamp(temp2, inst->t, false, &value2);
-  assert (found1 && found2);
-
+  temporal_value_at_timestamp(temp1, inst->t, false, &value1);
+  temporal_value_at_timestamp(temp2, inst->t, false, &value2);
   LWGEOM *line = (LWGEOM *) lwline_make(value1, value2);
   *result = geo_serialize(line);
   lwgeom_free(line);

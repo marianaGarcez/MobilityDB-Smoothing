@@ -1,12 +1,12 @@
 /*****************************************************************************
  *
  * This MobilityDB code is provided under The PostgreSQL License.
- * Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+ * Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
  * contributors
  *
  * MobilityDB includes portions of PostGIS version 3 source code released
  * under the GNU General Public License (GPLv2 or later).
- * Copyright (c) 2001-2022, PostGIS contributors
+ * Copyright (c) 2001-2023, PostGIS contributors
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written
@@ -23,7 +23,7 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
  * AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
- * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  *****************************************************************************/
 
@@ -35,7 +35,7 @@
 #ifndef __LIFTING_H__
 #define __LIFTING_H__
 
-/* MobilityDB */
+/* MEOS */
 #include "general/temporal.h"
 
 /**
@@ -56,16 +56,16 @@ typedef struct
   int numparam;              /**< Number of parameters of the function */
   Datum param[MAX_PARAMS];   /**< Datum array for the parameters of the function */
   bool args;                 /**< True if the lifted function requires arguments */
-  mobdbType argtype[2];      /**< Base type of the arguments */
-  mobdbType restype;         /**< Temporal type of the result of the function */
+  meosType argtype[2];       /**< Base type of the arguments */
+  meosType restype;          /**< Temporal type of the result of the function */
   bool reslinear;            /**< True if the result has linear interpolation */
   bool invert;               /**< True if the arguments of the function must be inverted */
   bool discont;              /**< True if the function has instantaneous discontinuities */
-  bool (*tpfunc_base)(const TInstant *, const TInstant *, Datum, mobdbType,
+  bool (*tpfunc_base)(const TInstant *, const TInstant *, Datum, meosType,
     Datum *, TimestampTz *); /**< Turning point function for temporal and base types*/
   bool (*tpfunc)(const TInstant *, const TInstant *, const TInstant *,
-    const TInstant *, Datum *,
-    TimestampTz *);          /**< Turning point function for two temporal types */
+    const TInstant *,
+    Datum *, TimestampTz *); /**< Turning point function for two temporal types */
 } LiftedFunctionInfo;
 
 /*****************************************************************************/
@@ -92,8 +92,12 @@ extern Temporal *tfunc_temporal_base(const Temporal *temp, Datum value,
 
 extern TInstant *tfunc_tinstant_tinstant(const TInstant *inst1,
   const TInstant *inst2, LiftedFunctionInfo *lfinfo);
-extern TSequence *tfunc_tdiscseq_tdiscseq(const TSequence *is1,
-  const TSequence *is2, LiftedFunctionInfo *lfinfo);
+extern TSequence *tfunc_tdiscseq_tdiscseq(const TSequence *seq1,
+  const TSequence *seq2, LiftedFunctionInfo *lfinfo);
+extern Temporal *tfunc_tcontseq_tcontseq(const TSequence *seq1,
+  const TSequence *seq2, LiftedFunctionInfo *lfinfo);
+extern TSequenceSet *tfunc_tsequenceset_tsequenceset(const TSequenceSet *ss1,
+  const TSequenceSet *ss2, LiftedFunctionInfo *lfinfo);
 extern Temporal *tfunc_temporal_temporal(const Temporal *temp1,
   const Temporal *temp2, LiftedFunctionInfo *lfinfo);
 

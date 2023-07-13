@@ -1,12 +1,12 @@
 /*****************************************************************************
  *
  * This MobilityDB code is provided under The PostgreSQL License.
- * Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+ * Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
  * contributors
  *
  * MobilityDB includes portions of PostGIS version 3 source code released
  * under the GNU General Public License (GPLv2 or later).
- * Copyright (c) 2001-2022, PostGIS contributors
+ * Copyright (c) 2001-2023, PostGIS contributors
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written
@@ -23,7 +23,7 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
  * AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
- * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  *****************************************************************************/
 
@@ -36,31 +36,31 @@
  * Temporal and
  *****************************************************************************/
 
-CREATE FUNCTION temporal_and(boolean, tbool)
+CREATE FUNCTION tbool_and(boolean, tbool)
   RETURNS tbool
   AS 'MODULE_PATHNAME', 'Tand_bool_tbool'
   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-CREATE FUNCTION temporal_and(tbool, boolean)
+CREATE FUNCTION tbool_and(tbool, boolean)
   RETURNS tbool
   AS 'MODULE_PATHNAME', 'Tand_tbool_bool'
   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-CREATE FUNCTION temporal_and(tbool, tbool)
+CREATE FUNCTION tbool_and(tbool, tbool)
   RETURNS tbool
   AS 'MODULE_PATHNAME', 'Tand_tbool_tbool'
   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
 
 CREATE OPERATOR & (
-  PROCEDURE = temporal_and,
+  PROCEDURE = tbool_and,
   LEFTARG = boolean, RIGHTARG = tbool,
   COMMUTATOR = &
 );
 CREATE OPERATOR & (
-  PROCEDURE = temporal_and,
+  PROCEDURE = tbool_and,
   LEFTARG = tbool, RIGHTARG = boolean,
   COMMUTATOR = &
 );
 CREATE OPERATOR & (
-  PROCEDURE = temporal_and,
+  PROCEDURE = tbool_and,
   LEFTARG = tbool, RIGHTARG = tbool,
   COMMUTATOR = &
 );
@@ -69,31 +69,31 @@ CREATE OPERATOR & (
  * Temporal or
  *****************************************************************************/
 
-CREATE FUNCTION temporal_or(boolean, tbool)
+CREATE FUNCTION tbool_or(boolean, tbool)
   RETURNS tbool
   AS 'MODULE_PATHNAME', 'Tor_bool_tbool'
   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-CREATE FUNCTION temporal_or(tbool, boolean)
+CREATE FUNCTION tbool_or(tbool, boolean)
   RETURNS tbool
   AS 'MODULE_PATHNAME', 'Tor_tbool_bool'
   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-CREATE FUNCTION temporal_or(tbool, tbool)
+CREATE FUNCTION tbool_or(tbool, tbool)
   RETURNS tbool
   AS 'MODULE_PATHNAME', 'Tor_tbool_tbool'
   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
 
 CREATE OPERATOR | (
-  PROCEDURE = temporal_or,
+  PROCEDURE = tbool_or,
   LEFTARG = boolean, RIGHTARG = tbool,
   COMMUTATOR = |
 );
 CREATE OPERATOR | (
-  PROCEDURE = temporal_or,
+  PROCEDURE = tbool_or,
   LEFTARG = tbool, RIGHTARG = boolean,
   COMMUTATOR = |
 );
 CREATE OPERATOR | (
-  PROCEDURE = temporal_or,
+  PROCEDURE = tbool_or,
   LEFTARG = tbool, RIGHTARG = tbool,
   COMMUTATOR = |
 );
@@ -102,13 +102,23 @@ CREATE OPERATOR | (
  * Temporal not
  *****************************************************************************/
 
-CREATE FUNCTION temporal_not(tbool)
+CREATE FUNCTION tbool_not(tbool)
   RETURNS tbool
   AS 'MODULE_PATHNAME', 'Tnot_tbool'
   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
 
 CREATE OPERATOR ~ (
-  PROCEDURE = temporal_not, RIGHTARG = tbool
+  PROCEDURE = tbool_not, RIGHTARG = tbool
 );
+
+/*****************************************************************************
+ * Temporal when
+ *****************************************************************************/
+
+-- when is a reserved word in SQL
+CREATE FUNCTION whenTrue(tbool)
+  RETURNS tstzspanset
+  AS 'MODULE_PATHNAME', 'Tbool_when'
+  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
 
 /*****************************************************************************/

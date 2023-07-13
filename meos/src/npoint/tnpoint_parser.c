@@ -1,12 +1,12 @@
 /*****************************************************************************
  *
  * This MobilityDB code is provided under The PostgreSQL License.
- * Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+ * Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
  * contributors
  *
  * MobilityDB includes portions of PostGIS version 3 source code released
  * under the GNU General Public License (GPLv2 or later).
- * Copyright (c) 2001-2022, PostGIS contributors
+ * Copyright (c) 2001-2023, PostGIS contributors
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written
@@ -23,20 +23,21 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
  * AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
- * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  *****************************************************************************/
 
 /**
+ * @file
  * @brief Functions for parsing static network types.
  */
 
 #include "npoint/tnpoint_parser.h"
 
-/* MobilityDB */
+/* MEOS */
 #include "general/temporaltypes.h"
-#include "general/temporal_parser.h"
-#include "general/temporal_util.h"
+#include "general/type_parser.h"
+#include "general/type_util.h"
 #include "npoint/tnpoint.h"
 #include "npoint/tnpoint_static.h"
 
@@ -50,7 +51,7 @@ npoint_parse(const char **str, bool end)
 {
   p_whitespace(str);
 
-  if (strncasecmp(*str, "NPOINT", 6) != 0)
+  if (pg_strncasecmp(*str, "NPOINT", 6) != 0)
     elog(ERROR, "Could not parse network point");
 
   *str += 6;
@@ -63,11 +64,8 @@ npoint_parse(const char **str, bool end)
   /* Parse rid */
   p_whitespace(str);
   int64 rid = DatumGetInt64(elem_parse(str, T_INT8));
-
-  p_whitespace(str);
   p_comma(str);
   p_whitespace(str);
-
   double pos = DatumGetFloat8(elem_parse(str, T_FLOAT8));
   if (pos < 0 || pos > 1)
     elog(ERROR, "The relative position must be a real number between 0 and 1");
@@ -91,27 +89,34 @@ nsegment_parse(const char **str)
 {
   p_whitespace(str);
 
-  if (strncasecmp(*str, "NSEGMENT", 8) != 0)
+  if (pg_strncasecmp(*str, "NSEGMENT", 8) != 0)
     elog(ERROR, "Could not parse network segment");
 
   *str += 8;
   p_whitespace(str);
 
-  int delim = 0;
-  while ((*str)[delim] != ')' && (*str)[delim] != '\0')
-    delim++;
-  if ((*str)[delim] == '\0')
-    elog(ERROR, "Could not parse network segment");
+  /* Parse opening parenthesis */
+  if (! p_oparen(str))
+    elog(ERROR, "Could not parse network point: Missing opening parenthesis");
 
-  int64 rid;
-  double pos1;
-  double pos2;
-  if (sscanf(*str, "( %ld , %lf , %lf )", &rid, &pos1, &pos2) != 3)
-    elog(ERROR, "Could not parse network segment");
-  if (pos1 < 0 || pos1 > 1 || pos2 < 0 || pos2 > 1)
+  /* Parse rid */
+  p_whitespace(str);
+  int64 rid = DatumGetInt64(elem_parse(str, T_INT8));
+  p_comma(str);
+  p_whitespace(str);
+  double pos1 = DatumGetFloat8(elem_parse(str, T_FLOAT8));
+  if (pos1 < 0 || pos1 > 1)
+    elog(ERROR, "The relative position must be a real number between 0 and 1");
+  p_comma(str);
+  p_whitespace(str);
+  double pos2 = DatumGetFloat8(elem_parse(str, T_FLOAT8));
+  if (pos2 < 0 || pos2 > 1)
     elog(ERROR, "The relative position must be a real number between 0 and 1");
 
-  *str += delim + 1;
+  /* Parse closing parenthesis */
+  p_whitespace(str);
+  if (! p_cparen(str))
+    elog(ERROR, "Could not parse network point: Missing closing parenthesis");
 
   /* Ensure there is no more input */
   ensure_end_input(str, true, "network segment");

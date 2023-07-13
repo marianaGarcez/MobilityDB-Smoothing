@@ -1,12 +1,12 @@
 /*****************************************************************************
  *
  * This MobilityDB code is provided under The PostgreSQL License.
- * Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+ * Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
  * contributors
  *
  * MobilityDB includes portions of PostGIS version 3 source code released
  * under the GNU General Public License (GPLv2 or later).
- * Copyright (c) 2001-2022, PostGIS contributors
+ * Copyright (c) 2001-2023, PostGIS contributors
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written
@@ -23,11 +23,12 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
  * AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
- * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  *****************************************************************************/
 
 /**
+ * @file
  * @brief Functions for gathering statistics from time type columns.
  *
  * These functions are based on those of the file rangetypes_typanalyze.c.
@@ -47,19 +48,23 @@
 #include <assert.h>
 /* PostgreSQL */
 #include <postgres.h>
+#include <fmgr.h>
 #include <catalog/pg_operator.h>
+#include <utils/typcache.h>
+#if POSTGRESQL_VERSION_NUMBER >= 160000
+  #include "varatt.h"
+#endif
 /* MEOS */
 #include <meos.h>
 #include <meos_internal.h>
-#include "general/timestampset.h"
-#include "general/periodset.h"
+#include "general/set.h"
 /* MobilityDB */
-#include "pg_general/temporal_catalog.h"
+#include "pg_general/meos_catalog.h"
 
 /*****************************************************************************/
 
 /**
- * Comparison function for sorting float8 values, used for period lengths
+ * @brief Comparison function for sorting float8 values, used for span lengths
  */
 int
 float8_qsort_cmp(const void *a1, const void *a2)
@@ -75,7 +80,7 @@ float8_qsort_cmp(const void *a1, const void *a2)
 }
 
 /**
- * Compute statistics for time type columns and for the time dimension of
+ * @brief Compute statistics for time type columns and for the time dimension of
  * all temporal types whose subtype is not instant
  *
  * @param[in] stats Structure storing statistics information
@@ -83,21 +88,18 @@ float8_qsort_cmp(const void *a1, const void *a2)
  * @param[in] slot_idx Index of the slot where the statistics collected are stored
  * @param[in] lowers,uppers Arrays of span bounds
  * @param[in] lengths Arrays of span lengths
- * @param[in] spantype type Enumerated type of the span
+ * @param[in] valuedim True for computing the histogram of the value dimension,
+ * false for the time dimension
  */
 void
-span_compute_stats(VacAttrStats *stats, int non_null_cnt, int *slot_idx,
-  SpanBound *lowers, SpanBound *uppers, float8 *lengths, mobdbType spantype)
+span_compute_stats_generic(VacAttrStats *stats, int non_null_cnt, int *slot_idx,
+  SpanBound *lowers, SpanBound *uppers, float8 *lengths, bool valuedim)
 {
   int num_hist, num_bins = stats->attr->attstattarget;
   Datum *bound_hist_values, *length_hist_values;
-  MemoryContext old_cxt;
 
   /* Must copy the target values into anl_context */
-  old_cxt = MemoryContextSwitchTo(stats->anl_context);
-
-  /* Set the kind of histogram depending on the value or the time dimension */
-  bool valuedim = (spantype == T_INTSPAN || spantype == T_FLOATSPAN);
+  MemoryContext old_cxt = MemoryContextSwitchTo(stats->anl_context);
 
   /*
    * Generate a bounds histogram and a length histogram slot entries
@@ -105,7 +107,6 @@ span_compute_stats(VacAttrStats *stats, int non_null_cnt, int *slot_idx,
    */
   if (non_null_cnt >= 2)
   {
-
     /* Generate a bounds histogram slot entry */
 
     /* Sort bound values */
@@ -230,78 +231,77 @@ span_compute_stats(VacAttrStats *stats, int non_null_cnt, int *slot_idx,
 }
 
 /**
- * Compute statistics for timestamp set, span, and span set columns
- *
+ * @brief Compute statistics for set, span, and span set columns
  * @param[in] stats Structure storing statistics information
  * @param[in] fetchfunc Fetch function
  * @param[in] samplerows Number of sample rows
- * @param[in] type Type of the column for which the stats are generated
+ * @param[in] totalrows Total number of rows
  */
 static void
-span_compute_stats_generic(VacAttrStats *stats, AnalyzeAttrFetchFunc fetchfunc,
-  int samplerows, mobdbType type)
+span_compute_stats(VacAttrStats *stats, AnalyzeAttrFetchFunc fetchfunc,
+  int samplerows, double totalrows __attribute__((unused)))
 {
   int null_cnt = 0, non_null_cnt = 0, slot_idx = 0;
-  float8 *lengths;
-  SpanBound *lowers, *uppers;
   double total_width = 0;
+  meosType type = oid_type(stats->attrtypid);
 
   /* Allocate memory to hold span bounds and lengths of the sample spans */
-  lowers = palloc(sizeof(SpanBound) * samplerows);
-  uppers = palloc(sizeof(SpanBound) * samplerows);
-  lengths = palloc(sizeof(float8) * samplerows);
+  SpanBound *lowers = palloc(sizeof(SpanBound) * samplerows);
+  SpanBound *uppers = palloc(sizeof(SpanBound) * samplerows);
+  float8 *lengths = palloc(sizeof(float8) * samplerows);
 
   /* Loop over the sample span values. */
   for (int i = 0; i < samplerows; i++)
   {
-    vacuum_delay_point();
-
+    /* Get value and determine whether is null */
     bool isnull;
     Datum value = fetchfunc(stats, i, &isnull);
+    /* Skip all NULLs. */
     if (isnull)
     {
-      /* span value is null, just count that */
       null_cnt++;
       continue;
     }
 
-    /* Get the (bounding) period or span and deserialize it for further
-     * analysis. */
-    assert(type == T_TIMESTAMPSET || type == T_PERIODSET ||
-      type ==  T_PERIOD || type == T_INTSPAN || type == T_FLOATSPAN);
-    const Span *span;
-    const Period *period;
+    /* Get the (bounding) span and deserialize it for further analysis. */
+    assert(set_type(type) || span_type(type) || spanset_type(type));
+    Span *span;
     SpanBound lower, upper;
-    if (type == T_TIMESTAMPSET)
+    if (set_type(type))
     {
-      const TimestampSet *ts= DatumGetTimestampSetP(value);
-      period = &ts->period;
-      span_deserialize((Span *) period, &lower, &upper);
+      const Set *s = DatumGetSetP(value);
+      Span sp;
+      set_set_span(s, &sp);
+      span_deserialize(&sp, &lower, &upper);
       /* Adjust the size */
-      total_width += VARSIZE(ts);
+      total_width += VARSIZE(s);
     }
-    else if (type == T_PERIODSET)
-    {
-      const PeriodSet *ps= DatumGetPeriodSetP(value);
-      period = &ps->period;
-      span_deserialize((Period *) period, &lower, &upper);
-      /* Adjust the size */
-      total_width += VARSIZE(ps);
-    }
-    else /* type ==  T_PERIOD ||type == T_INTSPAN || type == T_FLOATSPAN */
+    else if(span_type(type))
     {
       span = DatumGetSpanP(value);
       span_deserialize(span, &lower, &upper);
       /* Adjust the size */
       total_width += sizeof(Span);
     }
+    else /* spanset_type(type) */
+    {
+      const SpanSet *ss = DatumGetSpanSetP(value);
+      span_deserialize(&ss->span, &lower, &upper);
+      /* Adjust the size */
+      total_width += VARSIZE(ss);
+    }
 
     /* Remember bounds and length for further usage in histograms */
     lowers[non_null_cnt] = lower;
     uppers[non_null_cnt] = upper;
-    lengths[non_null_cnt] = distance_elem_elem(upper.val, lower.val,
+    lengths[non_null_cnt] = distance_value_value(upper.val, lower.val,
       upper.basetype, lower.basetype);
+
+    /* Increment non null count */
     non_null_cnt++;
+
+    /* Give backend a chance of interrupting us */
+    vacuum_delay_point();
   }
 
   /* We can only compute real stats if we found some non-null values. */
@@ -315,8 +315,9 @@ span_compute_stats_generic(VacAttrStats *stats, AnalyzeAttrFetchFunc fetchfunc,
     /* Estimate that non-null values are unique */
     stats->stadistinct = (float4) (-1.0 * (1.0 - stats->stanullfrac));
 
-    span_compute_stats(stats, non_null_cnt, &slot_idx, lowers, uppers,
-      lengths, type);
+    /* The last argument determines the slot for number/time statistics */
+    span_compute_stats_generic(stats, non_null_cnt, &slot_idx, lowers, uppers,
+      lengths, numspan_type(type));
   }
   else if (null_cnt > 0)
   {
@@ -333,184 +334,34 @@ span_compute_stats_generic(VacAttrStats *stats, AnalyzeAttrFetchFunc fetchfunc,
 
 /*****************************************************************************/
 
+PGDLLEXPORT Datum Span_analyze(PG_FUNCTION_ARGS);
+PG_FUNCTION_INFO_V1(Span_analyze);
 /**
- * Compute statistics for integer span columns (callback function)
- *
- * @param[in] stats Structure storing statistics information
- * @param[in] fetchfunc Fetch function
- * @param[in] samplerows Number of sample rows
- * @param[in] totalrows Total number of rows
+ * @brief Compute statistics for span columns
  */
-static void
-intspan_compute_stats(VacAttrStats *stats, AnalyzeAttrFetchFunc fetchfunc,
-  int samplerows, double totalrows __attribute__((unused)))
-{
-  span_compute_stats_generic(stats, fetchfunc, samplerows, T_INTSPAN);
-  return;
-}
-
-PG_FUNCTION_INFO_V1(Intspan_analyze);
-/**
- *  Compute statistics for integer span columns
- */
-PGDLLEXPORT Datum
-Intspan_analyze(PG_FUNCTION_ARGS)
+Datum
+Span_analyze(PG_FUNCTION_ARGS)
 {
   VacAttrStats *stats = (VacAttrStats *) PG_GETARG_POINTER(0);
-  Form_pg_attribute attr = stats->attr;
 
-  if (attr->attstattarget < 0)
-    attr->attstattarget = default_statistics_target;
+  /* Ensure type has a span as a bounding box */
+  assert(span_bbox_type(oid_type(stats->attrtypid)));
 
-  stats->compute_stats = intspan_compute_stats;
+  /*
+   * Call the standard typanalyze function. It may fail to find needed
+   * operators, in which case we also can't do anything, so just fail.
+   */
+  if (! std_typanalyze(stats))
+    PG_RETURN_BOOL(false);
+
+  /* Set the callback function to compute statistics. */
+  stats->compute_stats = &span_compute_stats;
+
+  if (stats->attr->attstattarget < 0)
+    stats->attr->attstattarget = default_statistics_target;
+
   /* same as in std_typanalyze */
-  stats->minrows = 300 * attr->attstattarget;
-
-  PG_RETURN_BOOL(true);
-}
-
-/**
- * Compute statistics for float span columns (callback function)
- *
- * @param[in] stats Structure storing statistics information
- * @param[in] fetchfunc Fetch function
- * @param[in] samplerows Number of sample rows
- * @param[in] totalrows Total number of rows
- */
-static void
-floatspan_compute_stats(VacAttrStats *stats, AnalyzeAttrFetchFunc fetchfunc,
-  int samplerows, double totalrows __attribute__((unused)))
-{
-  span_compute_stats_generic(stats, fetchfunc, samplerows, T_FLOATSPAN);
-  return;
-}
-
-PG_FUNCTION_INFO_V1(Floatspan_analyze);
-/**
- *  Compute statistics for float span columns
- */
-PGDLLEXPORT Datum
-Floatspan_analyze(PG_FUNCTION_ARGS)
-{
-  VacAttrStats *stats = (VacAttrStats *) PG_GETARG_POINTER(0);
-  Form_pg_attribute attr = stats->attr;
-
-  if (attr->attstattarget < 0)
-    attr->attstattarget = default_statistics_target;
-
-  stats->compute_stats = floatspan_compute_stats;
-  /* same as in std_typanalyze */
-  stats->minrows = 300 * attr->attstattarget;
-
-  PG_RETURN_BOOL(true);
-}
-
-/**
- * Compute statistics for float span columns (callback function)
- *
- * @param[in] stats Structure storing statistics information
- * @param[in] fetchfunc Fetch function
- * @param[in] samplerows Number of sample rows
- * @param[in] totalrows Total number of rows
- */
-static void
-period_compute_stats(VacAttrStats *stats, AnalyzeAttrFetchFunc fetchfunc,
-  int samplerows, double totalrows __attribute__((unused)))
-{
-  span_compute_stats_generic(stats, fetchfunc, samplerows, T_PERIOD);
-  return;
-}
-
-PG_FUNCTION_INFO_V1(Period_analyze);
-/**
- *  Compute statistics for float span columns
- */
-PGDLLEXPORT Datum
-Period_analyze(PG_FUNCTION_ARGS)
-{
-  VacAttrStats *stats = (VacAttrStats *) PG_GETARG_POINTER(0);
-  Form_pg_attribute attr = stats->attr;
-
-  if (attr->attstattarget < 0)
-    attr->attstattarget = default_statistics_target;
-
-  stats->compute_stats = period_compute_stats;
-  /* same as in std_typanalyze */
-  stats->minrows = 300 * attr->attstattarget;
-
-  PG_RETURN_BOOL(true);
-}
-
-/*****************************************************************************/
-
-/**
- * Compute statistics for timestampset columns (callback function)
- *
- * @param[in] stats Structure storing statistics information
- * @param[in] fetchfunc Fetch function
- * @param[in] samplerows Number of sample rows
- * @param[in] totalrows Total number of rows
- */
-static void
-timestampset_compute_stats(VacAttrStats *stats, AnalyzeAttrFetchFunc fetchfunc,
-  int samplerows, double totalrows __attribute__((unused)))
-{
-  span_compute_stats_generic(stats, fetchfunc, samplerows, T_TIMESTAMPSET);
-  return;
-}
-
-PG_FUNCTION_INFO_V1(Timestampset_analyze);
-/**
- * Compute statistics for timestamp set columns
- */
-PGDLLEXPORT Datum
-Timestampset_analyze(PG_FUNCTION_ARGS)
-{
-  VacAttrStats *stats = (VacAttrStats *) PG_GETARG_POINTER(0);
-  Form_pg_attribute attr = stats->attr;
-
-  if (attr->attstattarget < 0)
-    attr->attstattarget = default_statistics_target;
-
-  stats->compute_stats = timestampset_compute_stats;
-  /* same as in std_typanalyze */
-  stats->minrows = 300 * attr->attstattarget;
-
-  PG_RETURN_BOOL(true);
-}
-
-/**
- * Compute statistics for period set columns (callback function)
- *
- * @param[in] stats Structure storing statistics information
- * @param[in] fetchfunc Fetch function
- * @param[in] samplerows Number of sample rows
- * @param[in] totalrows Total number of rows
- */
-static void
-periodset_compute_stats(VacAttrStats *stats, AnalyzeAttrFetchFunc fetchfunc,
-  int samplerows, double totalrows __attribute__((unused)))
-{
-  span_compute_stats_generic(stats, fetchfunc, samplerows, T_PERIODSET);
-  return;
-}
-
-PG_FUNCTION_INFO_V1(Periodset_analyze);
-/**
- * Compute statistics for period set columns
- */
-PGDLLEXPORT Datum
-Periodset_analyze(PG_FUNCTION_ARGS)
-{
-  VacAttrStats *stats = (VacAttrStats *) PG_GETARG_POINTER(0);
-  Form_pg_attribute attr = stats->attr;
-
-  if (attr->attstattarget < 0)
-    attr->attstattarget = default_statistics_target;
-
-  stats->compute_stats = periodset_compute_stats;
-  /* same as in std_typanalyze */
-  stats->minrows = 300 * attr->attstattarget;
+  stats->minrows = 300 * stats->attr->attstattarget;
 
   PG_RETURN_BOOL(true);
 }

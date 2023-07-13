@@ -1,5 +1,5 @@
 #-------------------------------------
-# MobilityDB Main CMake file
+# MobilityDB/MEOS Main CMake file
 #-------------------------------------
 
 # Minimum Cmake version supporting fixtures
@@ -12,24 +12,21 @@ if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
   You may need to remove 'CMakeCache.txt' and 'CMakeFiles/'.")
 endif()
 
+# Set a default build type if none was specified
+# https://www.kitware.com/cmake-and-the-default-build-type/
+set(default_build_type "Release")
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+  message(STATUS "Setting build type to '${default_build_type}' as none was specified.")
+  set(CMAKE_BUILD_TYPE "${default_build_type}" CACHE
+      STRING "Choose the type of build." FORCE)
+  # Set the possible values of build type for cmake-gui
+  set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS
+    "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
+endif()
+
 # Specify search path for CMake modules to be loaded
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 include(CheckSymbolExists)
-
-# check if _GNU_SOURCE is available
-# this is needed for the MEOS hash table management
-# if (NOT _GNU_SOURCE)
-    # check_symbol_exists(__GNU_LIBRARY__ "features.h" _GNU_SOURCE)
-
-    # if (NOT _GNU_SOURCE)
-        # unset(_GNU_SOURCE CACHE)
-        # check_symbol_exists(_GNU_SOURCE "features.h" _GNU_SOURCE)
-    # endif ()
-# endif ()
-
-# if (_GNU_SOURCE)
-    # add_definitions(-D_GNU_SOURCE)
-# endif ()
 
 #-------------------------------------
 # RPATH settings
@@ -58,6 +55,17 @@ include(CheckSymbolExists)
 #-------------------------------------
 # MobilityDB definitions
 #-------------------------------------
+
+# Windows build with MSVC
+
+if(CMAKE_GENERATOR STREQUAL "Visual Studio 17 2022")
+  message(STATUS "Setting options for Visual Studio")
+  set(MSVC 1)
+  # Disable native language support
+  add_definitions(-DENABLE_NLS=0)
+  # Disable warning C4996: 'strcpy': This function or variable may be unsafe.
+  add_definitions(-D_CRT_SECURE_NO_WARNINGS=1)
+endif()
 
 # Option for including network points
 option(MEOS
@@ -109,8 +117,8 @@ set(CMAKE_CTEST_ARGUMENTS "--output-on-failure")
 enable_testing()
 
 set(MOBILITYDB_VERSION "${PROJECT_VERSION}")
-set(MOBILITYDB_VERSION_STR "${CMAKE_PROJECT_NAME} ${PROJECT_VERSION}${PROJECT_VERSION_DEV}")
-add_definitions(-DMOBILITYDB_VERSION_STR="${MOBILITYDB_VERSION_STR}")
+set(MOBILITYDB_VERSION_STRING "${CMAKE_PROJECT_NAME} ${PROJECT_VERSION}${PROJECT_VERSION_DEV}")
+add_definitions(-DMOBILITYDB_VERSION_STRING="${MOBILITYDB_VERSION_STRING}")
 
 # Comment out code used for debugging purposes so it is not concerned by the coverage
 if(CMAKE_BUILD_TYPE MATCHES Debug)
@@ -146,12 +154,17 @@ endif()
   # add_definitions(-DNO_HSEARCH_R)
 # endif()
 
-# MobilityDB compiler flags
-add_definitions(-Wall -Wextra -std=gnu1x -Wunused-parameter)
-# add_definitions(-Wall -Wextra -std=gnu1x -Wno-unused-parameter)
+# Added to build on Windows to avoid the error 'M_PI': undeclared identifier
+add_compile_definitions(_USE_MATH_DEFINES)
 
-# Code coverage
+# Set default compile flags and code coverage for GCC
 if(CMAKE_COMPILER_IS_GNUCC)
+  # MobilityDB compiler flags
+  add_definitions(-Wall -Wextra -std=gnu1x -Wunused-parameter -Wno-strict-aliasing)
+  # -Wno-strict-aliasing was removed to access directly PostGIS points
+  # See file tpoint_spatialfuncs.h
+  # add_definitions(-Wall -Wextra -std=gnu1x -Wno-unused-parameter)
+  # Code coverage
   if(WITH_COVERAGE)
     message(STATUS "Generating code coverage")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fprofile-arcs -ftest-coverage")
@@ -159,6 +172,8 @@ if(CMAKE_COMPILER_IS_GNUCC)
   endif()
 endif()
 
+# Set compiler optimizations for release
+set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O2")
 # Disable compiler optimizations for debugging
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0")
 
@@ -168,23 +183,17 @@ include(TestBigEndian)
 TEST_BIG_ENDIAN(IS_BIG_ENDIAN)
 if(IS_BIG_ENDIAN)
   message(STATUS "BIG_ENDIAN")
-  add_definitions(-DMOBDB_IS_BIG_ENDIAN=1)
+  add_definitions(-DMEOS_IS_BIG_ENDIAN=1)
   set(DEF_WORDS_BIGENDIAN "undef")
 else()
   message(STATUS "LITTLE_ENDIAN")
-  add_definitions(-DMOBDB_IS_BIG_ENDIAN=0)
+  add_definitions(-DMEOS_IS_BIG_ENDIAN=0)
   set(DEF_WORDS_BIGENDIAN "#undef")
 endif()
 
 #-------------------------------------
 # Build either MobilityDB or MEOS
 #-------------------------------------
-
-# Customize the meos.h file for buiding MEOS/MobilityDB
-file(READ "${CMAKE_SOURCE_DIR}/meos/include/meos.in.h" MEOS_H_IN)
-file(READ "${CMAKE_SOURCE_DIR}/meos/include/pg_int_defs.in.h" PG_INT_DEFS_H)
-string(REGEX REPLACE @POSTGRES_DEFS@ "${PG_INT_DEFS_H}" MEOS_H "${MEOS_H_IN}")
-file(WRITE "${CMAKE_SOURCE_DIR}/meos/include/meos.h" "${MEOS_H}")
 
 if(MEOS)
   add_subdirectory(meos)

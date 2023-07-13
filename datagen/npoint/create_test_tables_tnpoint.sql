@@ -1,12 +1,12 @@
 /*****************************************************************************
  *
  * This MobilityDB code is provided under The PostgreSQL License.
- * Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+ * Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
  * contributors
  *
  * MobilityDB includes portions of PostGIS version 3 source code released
  * under the GNU General Public License (GPLv2 or later).
- * Copyright (c) 2001-2022, PostGIS contributors
+ * Copyright (c) 2001-2023, PostGIS contributors
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation FOR any purpose, without fee, and without a written
@@ -23,7 +23,7 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
  * AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
- * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  *****************************************************************************/
 
@@ -74,6 +74,14 @@ DROP TABLE IF EXISTS tbl_nsegment;
 CREATE TABLE tbl_nsegment AS
 SELECT k, random_nsegment(0, size) AS ns
 FROM generate_series(1, size) k;
+
+DROP TABLE IF EXISTS tbl_npointset;
+CREATE TABLE tbl_npointset AS
+/* Add perc NULL values */
+SELECT k, NULL AS n
+FROM generate_series(1, perc) AS k UNION
+SELECT k, random_npoint_set(1, 100, 5, 10)
+FROM generate_series(perc+1, size) AS k;
 
 ------------------------------------------------------------------------------
 -- Temporal Network Types

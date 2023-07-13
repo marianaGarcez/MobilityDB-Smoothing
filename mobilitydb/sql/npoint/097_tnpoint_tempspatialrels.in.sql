@@ -1,12 +1,12 @@
 /*****************************************************************************
  *
  * This MobilityDB code is provided under The PostgreSQL License.
- * Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+ * Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
  * contributors
  *
  * MobilityDB includes portions of PostGIS version 3 source code released
  * under the GNU General Public License (GPLv2 or later).
- * Copyright (c) 2001-2022, PostGIS contributors
+ * Copyright (c) 2001-2023, PostGIS contributors
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written
@@ -23,7 +23,7 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
  * AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
- * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  *****************************************************************************/
 
@@ -40,174 +40,107 @@
  * tcontains
  *****************************************************************************/
 
-CREATE FUNCTION tcontains(geometry, tnpoint)
+-- ALL the following functions are not STRICT
+CREATE FUNCTION tcontains(geometry, tnpoint, atvalue bool DEFAULT NULL)
   RETURNS tbool
   AS 'MODULE_PATHNAME', 'Tcontains_geo_tnpoint'
-  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-
-CREATE FUNCTION tcontains(geometry, tnpoint, atvalue bool)
-  RETURNS tbool
-  AS 'MODULE_PATHNAME', 'Tcontains_geo_tnpoint'
-  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+  LANGUAGE C IMMUTABLE PARALLEL SAFE;
 
 /*****************************************************************************
  * tdisjoint
  *****************************************************************************/
 
-CREATE FUNCTION tdisjoint(geometry, tnpoint)
+-- ALL the following functions are not STRICT
+CREATE FUNCTION tdisjoint(geometry, tnpoint, atvalue bool DEFAULT NULL)
   RETURNS tbool
   AS 'MODULE_PATHNAME', 'Tdisjoint_geo_tnpoint'
-  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-CREATE FUNCTION tdisjoint(npoint, tnpoint)
+  LANGUAGE C IMMUTABLE PARALLEL SAFE;
+CREATE FUNCTION tdisjoint(npoint, tnpoint, atvalue bool DEFAULT NULL)
   RETURNS tbool
   AS 'MODULE_PATHNAME', 'Tdisjoint_npoint_tnpoint'
-  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-CREATE FUNCTION tdisjoint(tnpoint, geometry)
+  LANGUAGE C IMMUTABLE PARALLEL SAFE;
+CREATE FUNCTION tdisjoint(tnpoint, geometry, atvalue bool DEFAULT NULL)
   RETURNS tbool
   AS 'MODULE_PATHNAME', 'Tdisjoint_tnpoint_geo'
-  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-CREATE FUNCTION tdisjoint(tnpoint, npoint)
+  LANGUAGE C IMMUTABLE PARALLEL SAFE;
+CREATE FUNCTION tdisjoint(tnpoint, npoint, atvalue bool DEFAULT NULL)
   RETURNS tbool
   AS 'MODULE_PATHNAME', 'Tdisjoint_tnpoint_npoint'
-  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-
-CREATE FUNCTION tdisjoint(geometry, tnpoint, atvalue bool)
-  RETURNS tbool
-  AS 'MODULE_PATHNAME', 'Tdisjoint_geo_tnpoint'
-  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-CREATE FUNCTION tdisjoint(npoint, tnpoint, atvalue bool)
-  RETURNS tbool
-  AS 'MODULE_PATHNAME', 'Tdisjoint_npoint_tnpoint'
-  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-CREATE FUNCTION tdisjoint(tnpoint, geometry, atvalue bool)
-  RETURNS tbool
-  AS 'MODULE_PATHNAME', 'Tdisjoint_tnpoint_geo'
-  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-CREATE FUNCTION tdisjoint(tnpoint, npoint, atvalue bool)
-  RETURNS tbool
-  AS 'MODULE_PATHNAME', 'Tdisjoint_tnpoint_npoint'
-  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+  LANGUAGE C IMMUTABLE PARALLEL SAFE;
 
 /*****************************************************************************
  * tintersects
  *****************************************************************************/
 
-CREATE FUNCTION tintersects(geometry, tnpoint)
+-- ALL the following functions are not STRICT
+CREATE FUNCTION tintersects(geometry, tnpoint, atvalue bool DEFAULT NULL)
   RETURNS tbool
   AS 'MODULE_PATHNAME', 'Tintersects_geo_tnpoint'
-  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-CREATE FUNCTION tintersects(npoint, tnpoint)
+  LANGUAGE C IMMUTABLE PARALLEL SAFE;
+CREATE FUNCTION tintersects(npoint, tnpoint, atvalue bool DEFAULT NULL)
   RETURNS tbool
   AS 'MODULE_PATHNAME', 'Tintersects_npoint_tnpoint'
-  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-CREATE FUNCTION tintersects(tnpoint, geometry)
+  LANGUAGE C IMMUTABLE PARALLEL SAFE;
+CREATE FUNCTION tintersects(tnpoint, geometry, atvalue bool DEFAULT NULL)
   RETURNS tbool
   AS 'MODULE_PATHNAME', 'Tintersects_tnpoint_geo'
-  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-CREATE FUNCTION tintersects(tnpoint, npoint)
+  LANGUAGE C IMMUTABLE PARALLEL SAFE;
+CREATE FUNCTION tintersects(tnpoint, npoint, atvalue bool DEFAULT NULL)
   RETURNS tbool
   AS 'MODULE_PATHNAME', 'Tintersects_tnpoint_npoint'
-  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-
-CREATE FUNCTION tintersects(geometry, tnpoint, atvalue bool)
-  RETURNS tbool
-  AS 'MODULE_PATHNAME', 'Tintersects_geo_tnpoint'
-  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-CREATE FUNCTION tintersects(npoint, tnpoint, atvalue bool)
-  RETURNS tbool
-  AS 'MODULE_PATHNAME', 'Tintersects_npoint_tnpoint'
-  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-CREATE FUNCTION tintersects(tnpoint, geometry, atvalue bool)
-  RETURNS tbool
-  AS 'MODULE_PATHNAME', 'Tintersects_tnpoint_geo'
-  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-CREATE FUNCTION tintersects(tnpoint, npoint, atvalue bool)
-  RETURNS tbool
-  AS 'MODULE_PATHNAME', 'Tintersects_tnpoint_npoint'
-  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+  LANGUAGE C IMMUTABLE PARALLEL SAFE;
 
 /*****************************************************************************
  * ttouches
  *****************************************************************************/
 
-CREATE FUNCTION ttouches(geometry, tnpoint)
+-- ALL the following functions are not STRICT
+CREATE FUNCTION ttouches(geometry, tnpoint, atvalue bool DEFAULT NULL)
   RETURNS tbool
   AS 'MODULE_PATHNAME', 'Ttouches_geo_tnpoint'
-  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-CREATE FUNCTION ttouches(npoint, tnpoint)
+  LANGUAGE C IMMUTABLE PARALLEL SAFE;
+CREATE FUNCTION ttouches(npoint, tnpoint, atvalue bool DEFAULT NULL)
   RETURNS tbool
   AS 'MODULE_PATHNAME', 'Ttouches_npoint_tnpoint'
-  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-CREATE FUNCTION ttouches(tnpoint, geometry)
+  LANGUAGE C IMMUTABLE PARALLEL SAFE;
+CREATE FUNCTION ttouches(tnpoint, geometry, atvalue bool DEFAULT NULL)
   RETURNS tbool
   AS 'MODULE_PATHNAME', 'Ttouches_tnpoint_geo'
-  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-CREATE FUNCTION ttouches(tnpoint, npoint)
+  LANGUAGE C IMMUTABLE PARALLEL SAFE;
+CREATE FUNCTION ttouches(tnpoint, npoint, atvalue bool DEFAULT NULL)
   RETURNS tbool
   AS 'MODULE_PATHNAME', 'Ttouches_tnpoint_npoint'
-  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-
-CREATE FUNCTION ttouches(geometry, tnpoint, atvalue bool)
-  RETURNS tbool
-  AS 'MODULE_PATHNAME', 'Ttouches_geo_tnpoint'
-  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-CREATE FUNCTION ttouches(npoint, tnpoint, atvalue bool)
-  RETURNS tbool
-  AS 'MODULE_PATHNAME', 'Ttouches_npoint_tnpoint'
-  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-CREATE FUNCTION ttouches(tnpoint, geometry, atvalue bool)
-  RETURNS tbool
-  AS 'MODULE_PATHNAME', 'Ttouches_tnpoint_geo'
-  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-CREATE FUNCTION ttouches(tnpoint, npoint, atvalue bool)
-  RETURNS tbool
-  AS 'MODULE_PATHNAME', 'Ttouches_tnpoint_npoint'
-  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+  LANGUAGE C IMMUTABLE PARALLEL SAFE;
 
 /*****************************************************************************
  * tdwithin
  *****************************************************************************/
 
-CREATE FUNCTION tdwithin(geometry, tnpoint, dist float8)
+-- ALL the following functions are not STRICT
+CREATE FUNCTION tdwithin(geometry, tnpoint, dist float,
+    atvalue bool DEFAULT NULL)
   RETURNS tbool
   AS 'MODULE_PATHNAME', 'Tdwithin_geo_tnpoint'
-  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-CREATE FUNCTION tdwithin(npoint, tnpoint, dist float8)
+  LANGUAGE C IMMUTABLE PARALLEL SAFE;
+CREATE FUNCTION tdwithin(npoint, tnpoint, dist float,
+    atvalue bool DEFAULT NULL)
   RETURNS tbool
   AS 'MODULE_PATHNAME', 'Tdwithin_npoint_tnpoint'
-  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-CREATE FUNCTION tdwithin(tnpoint, geometry, dist float8)
+  LANGUAGE C IMMUTABLE PARALLEL SAFE;
+CREATE FUNCTION tdwithin(tnpoint, geometry, dist float,
+    atvalue bool DEFAULT NULL)
   RETURNS tbool
   AS 'MODULE_PATHNAME', 'Tdwithin_tnpoint_geo'
-  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-CREATE FUNCTION tdwithin(tnpoint, npoint, dist float8)
+  LANGUAGE C IMMUTABLE PARALLEL SAFE;
+CREATE FUNCTION tdwithin(tnpoint, npoint, dist float,
+    atvalue bool DEFAULT NULL)
   RETURNS tbool
   AS 'MODULE_PATHNAME', 'Tdwithin_tnpoint_npoint'
-  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-CREATE FUNCTION tdwithin(tnpoint, tnpoint, dist float8)
+  LANGUAGE C IMMUTABLE PARALLEL SAFE;
+CREATE FUNCTION tdwithin(tnpoint, tnpoint, dist float,
+    atvalue bool DEFAULT NULL)
   RETURNS tbool
   AS 'MODULE_PATHNAME', 'Tdwithin_tnpoint_tnpoint'
-  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-
-CREATE FUNCTION tdwithin(geometry, tnpoint, dist float8, atvalue bool)
-  RETURNS tbool
-  AS 'MODULE_PATHNAME', 'Tdwithin_geo_tnpoint'
-  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-CREATE FUNCTION tdwithin(npoint, tnpoint, dist float8, atvalue bool)
-  RETURNS tbool
-  AS 'MODULE_PATHNAME', 'Tdwithin_npoint_tnpoint'
-  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-CREATE FUNCTION tdwithin(tnpoint, geometry, dist float8, atvalue bool)
-  RETURNS tbool
-  AS 'MODULE_PATHNAME', 'Tdwithin_tnpoint_geo'
-  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-CREATE FUNCTION tdwithin(tnpoint, npoint, dist float8, atvalue bool)
-  RETURNS tbool
-  AS 'MODULE_PATHNAME', 'Tdwithin_tnpoint_npoint'
-  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-CREATE FUNCTION tdwithin(tnpoint, tnpoint, dist float8, atvalue bool)
-  RETURNS tbool
-  AS 'MODULE_PATHNAME', 'Tdwithin_tnpoint_tnpoint'
-  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+  LANGUAGE C IMMUTABLE PARALLEL SAFE;
 
 /*****************************************************************************/

@@ -1,12 +1,12 @@
 /*****************************************************************************
  *
  * This MobilityDB code is provided under The PostgreSQL License.
- * Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+ * Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
  * contributors
  *
  * MobilityDB includes portions of PostGIS version 3 source code released
  * under the GNU General Public License (GPLv2 or later).
- * Copyright (c) 2001-2022, PostGIS contributors
+ * Copyright (c) 2001-2023, PostGIS contributors
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written
@@ -23,7 +23,7 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
  * AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
- * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  *****************************************************************************/
 
@@ -38,14 +38,14 @@
 #include <postgres.h>
 /* PostGIS */
 #include <liblwgeom.h>
-/* MobilityDB */
-#include "general/timetypes.h"
+/* MEOS */
+#include "general/set.h"
 
 /*****************************************************************************
  * fmgr macros
  *****************************************************************************/
 
-#define DatumGetSTboxP(X)    ((STBOX *) DatumGetPointer(X))
+#define DatumGetSTboxP(X)    ((STBox *) DatumGetPointer(X))
 #define STboxPGetDatum(X)    PointerGetDatum(X)
 #define PG_GETARG_STBOX_P(n) DatumGetSTboxP(PG_GETARG_DATUM(n))
 #define PG_RETURN_STBOX_P(x) return STboxPGetDatum(x)
@@ -54,17 +54,19 @@
 
 /* Parameter tests */
 
-extern void ensure_has_X_stbox(const STBOX *box);
-extern void ensure_has_T_stbox(const STBOX *box);
+extern void ensure_has_X_stbox(const STBox *box);
+extern void ensure_has_T_stbox(const STBox *box);
 
-/* Set an STBOX from a <Type> */
+/* Set an STBox from a <Type> */
 
-extern void timestampset_stbox_slice(Datum tsdatum, STBOX *box);
-extern void periodset_stbox_slice(Datum psdatum, STBOX *box);
+extern void point_get_coords(const GSERIALIZED *point, bool hasz,
+  double *x, double *y, double *z);
+extern void timestampset_stbox_slice(Datum tsdatum, STBox *box);
+extern void periodset_stbox_slice(Datum psdatum, STBox *box);
 
 /* SRID functions */
 
-extern STBOX * stbox_set_srid(const STBOX *box, int32 srid);
+extern STBox *stbox_set_srid(const STBox *box, int32 srid);
 
 /*****************************************************************************/
 

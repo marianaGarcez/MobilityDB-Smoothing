@@ -1,12 +1,12 @@
 /*****************************************************************************
  *
  * This MobilityDB code is provided under The PostgreSQL License.
- * Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+ * Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
  * contributors
  *
  * MobilityDB includes portions of PostGIS version 3 source code released
  * under the GNU General Public License (GPLv2 or later).
- * Copyright (c) 2001-2022, PostGIS contributors
+ * Copyright (c) 2001-2023, PostGIS contributors
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written
@@ -23,7 +23,7 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
  * AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
- * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  *****************************************************************************/
 
@@ -38,9 +38,8 @@
  */
 
 #include <stdio.h>  /* for printf */
-
 /* Include the MEOS API header */
-#include "meos.h"
+#include <meos.h>
 
 int main()
 {
@@ -68,13 +67,13 @@ int main()
   GSERIALIZED *polygon1 = gserialized_in(polygon_text, -1);
 
   /* Ensure that the reverted types are equal to the original ones */
-  if (! gserialized_same(point, point1))
+  if (! pgis_gserialized_same(point, point1))
     printf("ERROR: Distinct input and output geometries in WKT\n%s\n%s",
       point_wkt, point_text);
-  if (! gserialized_same(linestring, linestring1))
+  if (! pgis_gserialized_same(linestring, linestring1))
     printf("ERROR: Distinct input and output geometries in WKT\n%s\n%s",
       linestring_wkt, linestring_text);
-  if (! gserialized_same(polygon, polygon1))
+  if (! pgis_gserialized_same(polygon, polygon1))
     printf("ERROR: Distinct input and output geometries in WKT\n%s\n%s",
       polygon_wkt, polygon_text);
 
@@ -89,13 +88,13 @@ int main()
   GSERIALIZED *polygon2 = gserialized_from_geojson(polygon_geojson);
 
   /* Ensure that the reverted types are equal to the original ones */
-  if (! gserialized_same(point, point2))
+  if (! pgis_gserialized_same(point, point2))
     printf("ERROR: Distinct input and output geometries in GeoJSON\n%s\n%s",
       point_wkt, point_geojson);
-  if (! gserialized_same(linestring, linestring2))
+  if (! pgis_gserialized_same(linestring, linestring2))
     printf("ERROR: Distinct input and output geometries in GeoJSON\n%s\n%s",
       linestring_wkt, linestring_geojson);
-  if (! gserialized_same(polygon, polygon2))
+  if (! pgis_gserialized_same(polygon, polygon2))
     printf("ERROR: Distinct input and output geometries in GeoJSON\n%s\n%s",
       polygon_wkt, polygon_geojson);
 
@@ -110,13 +109,13 @@ int main()
   GSERIALIZED *polygon3 = gserialized_from_hexewkb(polygon_hexwkb);
 
   /* Ensure that the reverted types are equal to the original ones */
-  if (! gserialized_same(point, point3))
+  if (! pgis_gserialized_same(point, point3))
     printf("ERROR: Distinct input and output geometries in HexEWKB\n%s\n%s",
       point_wkt, point_text);
-  if (! gserialized_same(linestring, linestring3))
+  if (! pgis_gserialized_same(linestring, linestring3))
     printf("ERROR: Distinct input and output geometries in HexEWKB\n%s\n%s",
       linestring_wkt, linestring_text);
-  if (! gserialized_same(polygon, polygon3))
+  if (! pgis_gserialized_same(polygon, polygon3))
     printf("ERROR: Distinct input and output geometries in HexEWKB\n%s\n%s",
       polygon_wkt, polygon_text);
 
@@ -164,11 +163,11 @@ int main()
   free(point_text); free(point_geojson); free(point_hexwkb);
   free(linestring); free(linestring1); free(linestring2); free(linestring3);
   free(linestring_text); free(linestring_geojson); free(linestring_hexwkb);
-  free(polygon); free(polygon1); free(polygon2); free(polygon3); 
+  free(polygon); free(polygon1); free(polygon2); free(polygon3);
   free(polygon_text); free(polygon_geojson); free(polygon_hexwkb);
 
   /* Finalize MEOS */
-  meos_finish();
+  meos_finalize();
 
   /* Return */
   return 0;

@@ -1,12 +1,12 @@
 /*****************************************************************************
  *
  * This MobilityDB code is provided under The PostgreSQL License.
- * Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+ * Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
  * contributors
  *
  * MobilityDB includes portions of PostGIS version 3 source code released
  * under the GNU General Public License (GPLv2 or later).
- * Copyright (c) 2001-2022, PostGIS contributors
+ * Copyright (c) 2001-2023, PostGIS contributors
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written
@@ -23,12 +23,13 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
  * AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
- * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  *****************************************************************************/
 
 /**
- * @brief R-tree GiST index for time types.
+ * @file
+ * @brief R-tree GiST index for span and span set types.
  *
  * These functions are based on those in the file `rangetypes_gist.c`.
  */
@@ -44,19 +45,19 @@
 /* MEOS */
 #include <meos.h>
 #include <meos_internal.h>
-#include "general/timestampset.h"
-#include "general/periodset.h"
+#include "general/set.h"
+#include "general/spanset.h"
 #include "general/temporal.h"
 /* MobilityDB */
+#include "pg_general/meos_catalog.h"
 #include "pg_general/temporal.h"
-#include "pg_general/temporal_catalog.h"
 
 /*****************************************************************************
  * GiST consistent methods
  *****************************************************************************/
 
 /**
- * Leaf-level consistency for time types.
+ * @brief Leaf-level consistency for span types.
  *
  * @param[in] key Element in the index
  * @param[in] query Value being looked up in the index
@@ -99,7 +100,7 @@ span_index_consistent_leaf(const Span *key, const Span *query,
 }
 
 /**
- * GiST internal-page consistency for time types
+ * @brief GiST internal-page consistency for span types
  *
  * @param[in] key Element in the index
  * @param[in] query Value being looked up in the index
@@ -139,49 +140,49 @@ span_gist_consistent(const Span *key, const Span *query,
 }
 
 /**
- * Return true if a recheck is necessary depending on the strategy
+ * @brief Return true if a recheck is necessary depending on the strategy
  */
 bool
 span_index_recheck(StrategyNumber strategy)
 {
   /* These operators are based on bounding boxes */
   if (strategy == RTLeftStrategyNumber ||
-    strategy == RTOverLeftStrategyNumber ||
-    strategy == RTRightStrategyNumber ||
-    strategy == RTOverRightStrategyNumber)
+      strategy == RTOverLeftStrategyNumber ||
+      strategy == RTRightStrategyNumber ||
+      strategy == RTOverRightStrategyNumber)
     return false;
   return true;
 }
 
 /**
- * Transform the query argument into a span
+ * @brief Transform the query argument into a span
  */
 static bool
 span_gist_get_span(FunctionCallInfo fcinfo, Span *result, Oid typid)
 {
-  mobdbType type = oid_type(typid);
-  if (type == T_INT4 || type == T_FLOAT8 || type == T_TIMESTAMPTZ)
+  meosType type = oid_type(typid);
+  if (span_basetype(type))
   {
     /* Since function span_gist_consistent is strict, d is not NULL */
     Datum d = PG_GETARG_DATUM(1);
     span_set(d, d, true, true, type, result);
   }
-  else if (type == T_INTSPAN || type == T_FLOATSPAN || type == T_PERIOD)
+  else if (set_type(type))
+  {
+    Set *s = PG_GETARG_SET_P(1);
+    set_set_span(s, result);
+  }
+  else if (span_type(type))
   {
     Span *s = PG_GETARG_SPAN_P(1);
     if (s == NULL)
       PG_RETURN_BOOL(false);
     memcpy(result, s, sizeof(Span));
   }
-  else if (type == T_TIMESTAMPSET)
-  {
-    Datum tsdatum = PG_GETARG_DATUM(1);
-    timestampset_period_slice(tsdatum, result);
-  }
-  else if (type == T_PERIODSET)
+  else if (spanset_type(type))
   {
     Datum psdatum = PG_GETARG_DATUM(1);
-    periodset_period_slice(psdatum, result);
+    spanset_span_slice(psdatum, result);
   }
   /* For temporal types whose bounding box is a period */
   else if (talpha_type(type))
@@ -194,11 +195,12 @@ span_gist_get_span(FunctionCallInfo fcinfo, Span *result, Oid typid)
   return true;
 }
 
+PGDLLEXPORT Datum Span_gist_consistent(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Span_gist_consistent);
 /**
- * GiST consistent method for span types
+ * @brief GiST consistent method for span types
  */
-PGDLLEXPORT Datum
+Datum
 Span_gist_consistent(PG_FUNCTION_ARGS)
 {
   GISTENTRY *entry = (GISTENTRY *) PG_GETARG_POINTER(0);
@@ -231,11 +233,12 @@ Span_gist_consistent(PG_FUNCTION_ARGS)
  * GiST union method
  *****************************************************************************/
 
+PGDLLEXPORT Datum Span_gist_union(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Span_gist_union);
 /**
- * GiST union method for time types
+ * @brief GiST union method for span types
  */
-PGDLLEXPORT Datum
+Datum
 Span_gist_union(PG_FUNCTION_ARGS)
 {
   GistEntryVector *entryvec = (GistEntryVector *) PG_GETARG_POINTER(0);
@@ -250,40 +253,42 @@ Span_gist_union(PG_FUNCTION_ARGS)
  * GiST compress methods
  *****************************************************************************/
 
-PG_FUNCTION_INFO_V1(Timestampset_gist_compress);
+PGDLLEXPORT Datum Set_gist_compress(PG_FUNCTION_ARGS);
+PG_FUNCTION_INFO_V1(Set_gist_compress);
 /**
- * GiST compress method for timestamp sets
+ * @brief GiST compress method for timestamp sets
  */
-PGDLLEXPORT Datum
-Timestampset_gist_compress(PG_FUNCTION_ARGS)
+Datum
+Set_gist_compress(PG_FUNCTION_ARGS)
 {
   GISTENTRY *entry = (GISTENTRY *) PG_GETARG_POINTER(0);
   if (entry->leafkey)
   {
     GISTENTRY *retval = palloc(sizeof(GISTENTRY));
-    Period *period = palloc(sizeof(Period));
-    timestampset_period_slice(entry->key, period);
-    gistentryinit(*retval, PointerGetDatum(period), entry->rel, entry->page,
+    Span *span = palloc(sizeof(Span));
+    set_set_span(DatumGetSetP(entry->key), span);
+    gistentryinit(*retval, PointerGetDatum(span), entry->rel, entry->page,
       entry->offset, false);
     PG_RETURN_POINTER(retval);
   }
   PG_RETURN_POINTER(entry);
 }
 
-PG_FUNCTION_INFO_V1(Periodset_gist_compress);
+PGDLLEXPORT Datum Spanset_gist_compress(PG_FUNCTION_ARGS);
+PG_FUNCTION_INFO_V1(Spanset_gist_compress);
 /**
- * GiST compress method for period sets
+ * @brief GiST compress method for span sets
  */
-PGDLLEXPORT Datum
-Periodset_gist_compress(PG_FUNCTION_ARGS)
+Datum
+Spanset_gist_compress(PG_FUNCTION_ARGS)
 {
   GISTENTRY *entry = (GISTENTRY *) PG_GETARG_POINTER(0);
   if (entry->leafkey)
   {
     GISTENTRY *retval = palloc(sizeof(GISTENTRY));
-    Period *period = palloc(sizeof(Period));
-    periodset_period_slice(entry->key, period);
-    gistentryinit(*retval, PointerGetDatum(period), entry->rel, entry->page,
+    Span *span = palloc(sizeof(Span));
+    spanset_span_slice(entry->key, span);
+    gistentryinit(*retval, PointerGetDatum(span), entry->rel, entry->page,
       entry->offset, false);
     PG_RETURN_POINTER(retval);
   }
@@ -291,20 +296,21 @@ Periodset_gist_compress(PG_FUNCTION_ARGS)
 }
 
 /*****************************************************************************
- * GiST penalty method for time types
+ * GiST penalty method for span types
  *****************************************************************************/
 
+PGDLLEXPORT Datum Span_gist_penalty(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Span_gist_penalty);
 /**
- * GiST page split penalty function for spans.
+ * @brief GiST page split penalty function for spans.
  *
  * The penalty function has the following goals (in order from most to least
  * important):
- * - Avoid broadening (as determined by distance_elem_elem) the original
+ * - Avoid broadening (as determined by distance_value_value) the original
  *   predicate
  * - Favor adding spans to narrower original predicates
  */
-PGDLLEXPORT Datum
+Datum
 Span_gist_penalty(PG_FUNCTION_ARGS)
 {
   GISTENTRY *origentry = (GISTENTRY *) PG_GETARG_POINTER(0);
@@ -316,13 +322,13 @@ Span_gist_penalty(PG_FUNCTION_ARGS)
   span_deserialize(orig, &orig_lower, &orig_upper);
   span_deserialize(new, &new_lower, &new_upper);
 
-  /* Calculate extension of original span by calling distance_elem_elem */
+  /* Calculate extension of original span by calling distance_value_value */
   float8 diff = 0.0;
   if (span_bound_cmp(&new_lower, &orig_lower) < 0)
-    diff += distance_elem_elem(orig->lower, new->lower, orig->basetype,
+    diff += distance_value_value(orig->lower, new->lower, orig->basetype,
       new->basetype);
   if (span_bound_cmp(&new_upper, &orig_upper) > 0)
-    diff += distance_elem_elem(new->upper, orig->upper, new->basetype,
+    diff += distance_value_value(new->upper, orig->upper, new->basetype,
       orig->basetype);
   *penalty = (float4) diff;
 
@@ -330,15 +336,31 @@ Span_gist_penalty(PG_FUNCTION_ARGS)
 }
 
 /*****************************************************************************
- * GiST picksplit method for time types
+ * GiST picksplit method for span types
  *****************************************************************************/
+
+/**
+ * @brief Return the bounding union of two spans.
+ * @note The result of the function is always a span even if the spans do not
+ * overlap
+ * @note This function is similar to `bbox_union_span_span` with memory
+ * allocation
+ */
+static Span *
+super_union_span_span(const Span *s1, const Span *s2)
+{
+  assert(s1->spantype == s2->spantype);
+  Span *result = span_copy(s1);
+  span_expand(s2, result);
+  return result;
+}
 
 /* Helper macros to place an entry in the left or right group during split */
 /* Note direct access to variables v, left_span, right_span */
 #define PLACE_LEFT(span, off)          \
   do {                    \
     if (v->spl_nleft > 0)          \
-      left_span = union_span_span(left_span, span, false); \
+      left_span = super_union_span_span(left_span, span); \
     else                  \
       left_span = (span);        \
     v->spl_left[v->spl_nleft++] = (off);  \
@@ -347,14 +369,14 @@ Span_gist_penalty(PG_FUNCTION_ARGS)
 #define PLACE_RIGHT(span, off)        \
   do {                    \
     if (v->spl_nright > 0)          \
-      right_span = union_span_span(right_span, span, false); \
+      right_span = super_union_span_span(right_span, span); \
     else                  \
       right_span = (span);      \
     v->spl_right[v->spl_nright++] = (off);  \
   } while (0)
 
 /**
- * Trivial split: half of entries will be placed on one page
+ * @brief Trivial split: half of entries will be placed on one page
  * and the other half on the other page.
  */
 static void
@@ -385,7 +407,7 @@ span_gist_fallback_split(GistEntryVector *entryvec, GIST_SPLITVEC *v)
 }
 
 /**
- * Structure keeping context for the function span_gist_consider_split
+ * @brief Structure keeping context for the function span_gist_consider_split
  */
 typedef struct
 {
@@ -401,13 +423,12 @@ typedef struct
 } ConsiderSplitContext;
 
 /**
- * Consider replacement of currently selected split with a better one
+ * @brief Consider replacement of currently selected split with a better one
  * during span_gist_double_sorting_split.
  */
 static void
-span_gist_consider_split(ConsiderSplitContext *context,
-  SpanBound *right_lower, int min_left_count,
-  SpanBound *left_upper, int max_left_count)
+span_gist_consider_split(ConsiderSplitContext *context, SpanBound *right_lower,
+  int min_left_count, SpanBound *left_upper, int max_left_count)
 {
   int left_count, right_count;
   float4 ratio, overlap;
@@ -442,7 +463,7 @@ span_gist_consider_split(ConsiderSplitContext *context,
      * values) and minimal ratio secondarily.  The subtype_diff is
      * used for overlap measure.
      */
-    overlap = (float4) distance_elem_elem(left_upper->val, right_lower->val,
+    overlap = (float4) distance_value_value(left_upper->val, right_lower->val,
       left_upper->basetype, right_lower->basetype);
 
     /* If there is no previous selection, select this split */
@@ -475,7 +496,7 @@ span_gist_consider_split(ConsiderSplitContext *context,
 }
 
 /**
- * Structure keeping the bounds extracted from a span, for use in the
+ * @brief Structure keeping the bounds extracted from a span, for use in the
  * function span_gist_double_sorting_split
  */
 typedef struct
@@ -485,7 +506,7 @@ typedef struct
 } SpanBounds;
 
 /**
- * Compare SpanBounds by lower bound.
+ * @brief Compare SpanBounds by lower bound.
  */
 static int
 spanbounds_cmp_lower(const void *a, const void *b)
@@ -496,7 +517,7 @@ spanbounds_cmp_lower(const void *a, const void *b)
 }
 
 /**
- * Compare SpanBounds by upper bound.
+ * @brief Compare SpanBounds by upper bound.
  */
 static int
 spanbounds_cmp_upper(const void *a, const void *b)
@@ -507,7 +528,7 @@ spanbounds_cmp_upper(const void *a, const void *b)
 }
 
 /**
- * Compare CommonEntrys by their deltas.
+ * @brief Compare CommonEntrys by their deltas.
  * (We assume the deltas can't be NaN.)
  */
 int
@@ -524,7 +545,7 @@ common_entry_cmp(const void *i1, const void *i2)
 }
 
 /**
- * Double sorting split algorithm.
+ * @brief Double sorting split algorithm.
  *
  * The algorithm considers dividing spans into two groups. The first (left)
  * group contains general left bound. The second (right) group contains
@@ -569,8 +590,8 @@ span_gist_double_sorting_split(GistEntryVector *entryvec, GIST_SPLITVEC *v)
   context.first = true;
 
   /* Allocate arrays for sorted span bounds */
-  by_lower = palloc(nentries * sizeof(SpanBounds));
-  by_upper = palloc(nentries * sizeof(SpanBounds));
+  by_lower = palloc(sizeof(SpanBounds) * nentries);
+  by_upper = palloc(sizeof(SpanBounds) * nentries);
   /* Fill arrays of bounds */
   for (i = FirstOffsetNumber; i <= maxoff; i = OffsetNumberNext(i))
   {
@@ -590,7 +611,7 @@ span_gist_double_sorting_split(GistEntryVector *entryvec, GIST_SPLITVEC *v)
 
   /*----------
    * The goal is to form a left and right span, so that every entry
-   * span is contained by either left or right interval (or both).
+   * span is contained in either left or right interval (or both).
    *
    * For example, with the spans (0,1), (1,3), (2,3), (2,4):
    *
@@ -750,9 +771,9 @@ span_gist_double_sorting_split(GistEntryVector *entryvec, GIST_SPLITVEC *v)
          * (context.left_upper - upper)
          */
         common_entries[common_entries_count].delta =
-          distance_elem_elem(span->lower, context.right_lower.val,
+          distance_value_value(span->lower, context.right_lower.val,
             span->basetype, context.right_lower.basetype) -
-          distance_elem_elem(context.left_upper.val, span->upper,
+          distance_value_value(context.left_upper.val, span->upper,
             context.right_lower.basetype, span->basetype);
         common_entries_count++;
       }
@@ -791,7 +812,7 @@ span_gist_double_sorting_split(GistEntryVector *entryvec, GIST_SPLITVEC *v)
      */
     for (i = 0; i < common_entries_count; i++)
     {
-      int idx = common_entries[i].index;
+      OffsetNumber idx = (OffsetNumber) (common_entries[i].index);
       Span *span = DatumGetSpanP(entryvec->vector[idx].key);
 
       /*
@@ -814,14 +835,15 @@ span_gist_double_sorting_split(GistEntryVector *entryvec, GIST_SPLITVEC *v)
  * GiST picksplit method
  *****************************************************************************/
 
+PGDLLEXPORT Datum Span_gist_picksplit(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Span_gist_picksplit);
 /**
- * GiST picksplit method for time types
+ * @brief GiST picksplit method for span types
  *
  * It splits a list of spans into quadrants by choosing a central 4D
  * point as the median of the coordinates of the spans.
  */
-PGDLLEXPORT Datum
+Datum
 Span_gist_picksplit(PG_FUNCTION_ARGS)
 {
   GistEntryVector *entryvec = (GistEntryVector *) PG_GETARG_POINTER(0);
@@ -843,17 +865,18 @@ Span_gist_picksplit(PG_FUNCTION_ARGS)
  * GiST same method
  *****************************************************************************/
 
+PGDLLEXPORT Datum Span_gist_same(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Span_gist_same);
 /**
- * GiST same method for time types
+ * @brief GiST same method for span types
  */
-PGDLLEXPORT Datum
+Datum
 Span_gist_same(PG_FUNCTION_ARGS)
 {
-  Span *p1 = PG_GETARG_SPAN_P(0);
-  Span *p2 = PG_GETARG_SPAN_P(1);
+  Span *s1 = PG_GETARG_SPAN_P(0);
+  Span *s2 = PG_GETARG_SPAN_P(1);
   bool *result = (bool *) PG_GETARG_POINTER(2);
-  *result = span_eq(p1, p2);
+  *result = span_eq(s1, s2);
   PG_RETURN_POINTER(result);
 }
 
@@ -861,12 +884,13 @@ Span_gist_same(PG_FUNCTION_ARGS)
  * GiST distance method
  *****************************************************************************/
 
+PGDLLEXPORT Datum Span_gist_distance(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Span_gist_distance);
 /**
- * GiST support function. Take in a query and an entry and return the "distance"
- * between them.
+ * @brief GiST support function. Take in a query and an entry and return the
+ * "distance" between them.
 */
-PGDLLEXPORT Datum
+Datum
 Span_gist_distance(PG_FUNCTION_ARGS)
 {
   GISTENTRY *entry = (GISTENTRY *) PG_GETARG_POINTER(0);
@@ -898,11 +922,12 @@ Span_gist_distance(PG_FUNCTION_ARGS)
  * GiST fetch method
  *****************************************************************************/
 
+PGDLLEXPORT Datum Span_gist_fetch(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Span_gist_fetch);
 /**
- * GiST fetch method for time types (result in a span)
+ * @brief GiST fetch method for span types (result in a span)
  */
-PGDLLEXPORT Datum
+Datum
 Span_gist_fetch(PG_FUNCTION_ARGS)
 {
   GISTENTRY *entry = (GISTENTRY *) PG_GETARG_POINTER(0);

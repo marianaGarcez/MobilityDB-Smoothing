@@ -1,12 +1,12 @@
 /*****************************************************************************
  *
  * This MobilityDB code is provided under The PostgreSQL License.
- * Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+ * Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
  * contributors
  *
  * MobilityDB includes portions of PostGIS version 3 source code released
  * under the GNU General Public License (GPLv2 or later).
- * Copyright (c) 2001-2022, PostGIS contributors
+ * Copyright (c) 2001-2023, PostGIS contributors
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written
@@ -23,11 +23,12 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
  * AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
- * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  *****************************************************************************/
 
 /**
+ * @file
  * @brief Ever spatial relationships for temporal network points.
  *
  * These relationships compute the ever spatial relationship between the
@@ -40,7 +41,8 @@
 
 #include "npoint/tnpoint_spatialrels.h"
 
-/* MobilityDB */
+/* MEOS */
+#include <meos_internal.h>
 #include "general/lifting.h"
 #include "point/tpoint_spatialfuncs.h"
 #include "point/tpoint_spatialrels.h"
@@ -60,7 +62,7 @@
  * @param[in] invert True if the arguments should be inverted
  */
 Datum
-spatialrel_tnpoint_geo(const Temporal *temp, Datum geom,
+espatialrel_tnpoint_geo(const Temporal *temp, Datum geom,
   Datum (*func)(Datum, Datum), bool invert)
 {
   Datum geom1 = PointerGetDatum(tnpoint_geom(temp));
@@ -74,7 +76,7 @@ spatialrel_tnpoint_geo(const Temporal *temp, Datum geom,
  * network point
  */
 Datum
-spatialrel_tnpoint_npoint(const Temporal *temp, const Npoint *np,
+espatialrel_tnpoint_npoint(const Temporal *temp, const Npoint *np,
   Datum (*func)(Datum, Datum), bool invert)
 {
   Datum geom1 = PointerGetDatum(tnpoint_geom(temp));
@@ -90,7 +92,7 @@ spatialrel_tnpoint_npoint(const Temporal *temp, const Npoint *np,
  * relationship
  */
 int
-spatialrel_tnpoint_tnpoint(const Temporal *temp1, const Temporal *temp2,
+espatialrel_tnpoint_tnpoint(const Temporal *temp1, const Temporal *temp2,
   Datum (*func)(Datum, Datum))
 {
   ensure_same_srid(tnpoint_srid(temp1), tnpoint_srid(temp2));
@@ -113,8 +115,8 @@ spatialrel_tnpoint_tnpoint(const Temporal *temp1, const Temporal *temp2,
   lfinfo.restype = T_TBOOL;
   lfinfo.reslinear = false;
   lfinfo.invert = INVERT_NO;
-  lfinfo.discont = MOBDB_FLAGS_GET_LINEAR(tpoint1->flags) ||
-    MOBDB_FLAGS_GET_LINEAR(tpoint2->flags);
+  lfinfo.discont = MEOS_FLAGS_GET_LINEAR(tpoint1->flags) ||
+    MEOS_FLAGS_GET_LINEAR(tpoint2->flags);
   lfinfo.tpfunc_base = NULL;
   lfinfo.tpfunc = NULL;
   int result = efunc_temporal_temporal(tpoint1, tpoint2, &lfinfo);
@@ -133,19 +135,19 @@ spatialrel_tnpoint_tnpoint(const Temporal *temp1, const Temporal *temp2,
  * geometry
  *
  * @param[in] temp Temporal network point
- * @param[in] geom Geometry
- * @param[in] param Parameter
- * @param[in] func PostGIS function to be called
- * @param[in] invert True if the arguments should be inverted
+ * @param[in] gs Geometry
+ * @param[in] dist Distance
  */
-Datum
-spatialrel3_tnpoint_geom(const Temporal *temp, Datum geom, Datum param,
-  Datum (*func)(Datum, Datum, Datum), bool invert)
+int
+edwithin_tnpoint_geom(const Temporal *temp, const GSERIALIZED *gs, double dist)
 {
+  if (gserialized_is_empty(gs))
+    return -1;
   Datum geom1 = PointerGetDatum(tnpoint_geom(temp));
-  Datum result = invert ? func(geom, geom1, param) : func(geom1, geom, param);
+  Datum result = geom_dwithin2d(geom1, PointerGetDatum(gs),
+    Float8GetDatum(dist));
   pfree(DatumGetPointer(geom1));
-  return result;
+  return result ? 1 : 0;
 }
 
 /**
@@ -154,18 +156,14 @@ spatialrel3_tnpoint_geom(const Temporal *temp, Datum geom, Datum param,
  *
  * @param[in] temp Temporal network point
  * @param[in] np Network point
- * @param[in] param Parameter
- * @param[in] func PostGIS function to be called
- * @param[in] invert True if the arguments should be inverted
+ * @param[in] dist Distance
  */
 Datum
-spatialrel3_tnpoint_npoint(const Temporal *temp, const Npoint *np, Datum param,
-  Datum (*func)(Datum, Datum, Datum), bool invert)
+edwithin_tnpoint_npoint(const Temporal *temp, const Npoint *np, double dist)
 {
   Datum geom1 = PointerGetDatum(tnpoint_geom(temp));
   Datum geom2 = PointerGetDatum(npoint_geom(np));
-  Datum result = invert ? func(geom2, geom1, param) :
-    func(geom1, geom2, param);
+  Datum result = geom_dwithin2d(geom1, geom2, Float8GetDatum(dist));
   pfree(DatumGetPointer(geom1));
   pfree(DatumGetPointer(geom2));
   return result;
@@ -178,7 +176,7 @@ spatialrel3_tnpoint_npoint(const Temporal *temp, const Npoint *np, Datum param,
  * relationship
  */
 int
-dwithin_tnpoint_tnpoint(const Temporal *temp1, const Temporal *temp2,
+edwithin_tnpoint_tnpoint(const Temporal *temp1, const Temporal *temp2,
   double dist)
 {
   ensure_same_srid(tnpoint_srid(temp1), tnpoint_srid(temp2));
@@ -190,7 +188,7 @@ dwithin_tnpoint_tnpoint(const Temporal *temp1, const Temporal *temp2,
 
   Temporal *tpoint1 = tnpoint_tgeompoint(sync1);
   Temporal *tpoint2 = tnpoint_tgeompoint(sync2);
-  bool result = dwithin_tpoint_tpoint1(tpoint1, tpoint2, dist);
+  bool result = edwithin_tpoint_tpoint1(tpoint1, tpoint2, dist);
   pfree(tpoint1); pfree(tpoint2);
   pfree(sync1); pfree(sync2);
   return result ? 1 : 0;

@@ -1,12 +1,12 @@
 /*****************************************************************************
  *
  * This MobilityDB code is provided under The PostgreSQL License.
- * Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+ * Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
  * contributors
  *
  * MobilityDB includes portions of PostGIS version 3 source code released
  * under the GNU General Public License (GPLv2 or later).
- * Copyright (c) 2001-2022, PostGIS contributors
+ * Copyright (c) 2001-2023, PostGIS contributors
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written
@@ -23,7 +23,7 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
  * AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
- * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  *****************************************************************************/
 
@@ -33,14 +33,14 @@
  */
 
 -- Availability: 3.1.0
-CREATE FUNCTION ST_LineInterpolatePoint(geography, float8,
+CREATE FUNCTION ST_LineInterpolatePoint(geography, float,
     use_spheroid boolean DEFAULT true)
   RETURNS geography
   AS 'MODULE_PATHNAME', 'geography_line_interpolate_point'
   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
 
 -- Availability: 3.1.0
-CREATE FUNCTION ST_LineInterpolatePoints(geography, float8,
+CREATE FUNCTION ST_LineInterpolatePoints(geography, float,
     use_spheroid boolean DEFAULT true, repeat boolean DEFAULT true)
   RETURNS geography
   AS 'MODULE_PATHNAME', 'geography_line_interpolate_point'
@@ -54,7 +54,7 @@ CREATE FUNCTION ST_LineLocatePoint(geography, geography,
   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
 
 -- Availability: 3.1.0
-CREATE FUNCTION ST_LineSubstring(geography, float8, float8)
+CREATE FUNCTION ST_LineSubstring(geography, float, float)
   RETURNS geography
   AS 'MODULE_PATHNAME', 'geography_line_substring'
   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;

@@ -1,12 +1,12 @@
 /*****************************************************************************
  *
  * This MobilityDB code is provided under The PostgreSQL License.
- * Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+ * Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
  * contributors
  *
  * MobilityDB includes portions of PostGIS version 3 source code released
  * under the GNU General Public License (GPLv2 or later).
- * Copyright (c) 2001-2022, PostGIS contributors
+ * Copyright (c) 2001-2023, PostGIS contributors
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written
@@ -23,23 +23,29 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
  * AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
- * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  *****************************************************************************/
 
 /**
+ * @file
  * @brief Temporal Boolean operators: and, or, not.
  */
 
 #include "general/tbool_boolops.h"
 
-/* MobilityDB */
+/* PostgreSQL */
+#include <fmgr.h>
+/* MEOS */
+#include <meos.h>
+#include <meos_internal.h>
 #include "general/temporaltypes.h"
 
 /*****************************************************************************
  * Temporal and
  *****************************************************************************/
 
+PGDLLEXPORT Datum Tand_bool_tbool(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Tand_bool_tbool);
 /**
  * @ingroup mobilitydb_temporal_bool
@@ -47,7 +53,7 @@ PG_FUNCTION_INFO_V1(Tand_bool_tbool);
  * @sqlfunc temporal_and()
  * @sqlop @p &
  */
-PGDLLEXPORT Datum
+Datum
 Tand_bool_tbool(PG_FUNCTION_ARGS)
 {
   Datum b = PG_GETARG_DATUM(0);
@@ -57,6 +63,7 @@ Tand_bool_tbool(PG_FUNCTION_ARGS)
   PG_RETURN_POINTER(result);
 }
 
+PGDLLEXPORT Datum Tand_tbool_bool(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Tand_tbool_bool);
 /**
  * @ingroup mobilitydb_temporal_bool
@@ -64,7 +71,7 @@ PG_FUNCTION_INFO_V1(Tand_tbool_bool);
  * @sqlfunc temporal_and()
  * @sqlop @p &
  */
-PGDLLEXPORT Datum
+Datum
 Tand_tbool_bool(PG_FUNCTION_ARGS)
 {
   Temporal *temp = PG_GETARG_TEMPORAL_P(0);
@@ -74,6 +81,7 @@ Tand_tbool_bool(PG_FUNCTION_ARGS)
   PG_RETURN_POINTER(result);
 }
 
+PGDLLEXPORT Datum Tand_tbool_tbool(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Tand_tbool_tbool);
 /**
  * @ingroup mobilitydb_temporal_bool
@@ -81,7 +89,7 @@ PG_FUNCTION_INFO_V1(Tand_tbool_tbool);
  * @sqlfunc temporal_and()
  * @sqlop @p &
  */
-PGDLLEXPORT Datum
+Datum
 Tand_tbool_tbool(PG_FUNCTION_ARGS)
 {
   Temporal *temp1 = PG_GETARG_TEMPORAL_P(0);
@@ -89,7 +97,7 @@ Tand_tbool_tbool(PG_FUNCTION_ARGS)
   Temporal *result = boolop_tbool_tbool(temp1, temp2, &datum_and);
   PG_FREE_IF_COPY(temp1, 0);
   PG_FREE_IF_COPY(temp2, 1);
-  if (result == NULL)
+  if (! result)
     PG_RETURN_NULL();
   PG_RETURN_POINTER(result);
 }
@@ -98,6 +106,7 @@ Tand_tbool_tbool(PG_FUNCTION_ARGS)
  * Temporal or
  *****************************************************************************/
 
+PGDLLEXPORT Datum Tor_bool_tbool(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Tor_bool_tbool);
 /**
  * @ingroup mobilitydb_temporal_bool
@@ -105,7 +114,7 @@ PG_FUNCTION_INFO_V1(Tor_bool_tbool);
  * @sqlfunc temporal_or()
  * @sqlop @p |
  */
-PGDLLEXPORT Datum
+Datum
 Tor_bool_tbool(PG_FUNCTION_ARGS)
 {
   Datum b = PG_GETARG_DATUM(0);
@@ -115,6 +124,7 @@ Tor_bool_tbool(PG_FUNCTION_ARGS)
   PG_RETURN_POINTER(result);
 }
 
+PGDLLEXPORT Datum Tor_tbool_bool(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Tor_tbool_bool);
 /**
  * @ingroup mobilitydb_temporal_bool
@@ -122,7 +132,7 @@ PG_FUNCTION_INFO_V1(Tor_tbool_bool);
  * @sqlfunc temporal_or()
  * @sqlop @p |
  */
-PGDLLEXPORT Datum
+Datum
 Tor_tbool_bool(PG_FUNCTION_ARGS)
 {
   Temporal *temp = PG_GETARG_TEMPORAL_P(0);
@@ -132,6 +142,7 @@ Tor_tbool_bool(PG_FUNCTION_ARGS)
   PG_RETURN_POINTER(result);
 }
 
+PGDLLEXPORT Datum Tor_tbool_tbool(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Tor_tbool_tbool);
 /**
  * @ingroup mobilitydb_temporal_bool
@@ -139,7 +150,7 @@ PG_FUNCTION_INFO_V1(Tor_tbool_tbool);
  * @sqlfunc temporal_or()
  * @sqlop @p |
  */
-PGDLLEXPORT Datum
+Datum
 Tor_tbool_tbool(PG_FUNCTION_ARGS)
 {
   Temporal *temp1 = PG_GETARG_TEMPORAL_P(0);
@@ -147,7 +158,7 @@ Tor_tbool_tbool(PG_FUNCTION_ARGS)
   Temporal *result = boolop_tbool_tbool(temp1, temp2, &datum_or);
   PG_FREE_IF_COPY(temp1, 0);
   PG_FREE_IF_COPY(temp2, 1);
-  if (result == NULL)
+  if (! result)
     PG_RETURN_NULL();
   PG_RETURN_POINTER(result);
 }
@@ -156,6 +167,7 @@ Tor_tbool_tbool(PG_FUNCTION_ARGS)
  * Temporal not
  *****************************************************************************/
 
+PGDLLEXPORT Datum Tnot_tbool(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Tnot_tbool);
 /**
  * @ingroup mobilitydb_temporal_bool
@@ -163,12 +175,34 @@ PG_FUNCTION_INFO_V1(Tnot_tbool);
  * @sqlfunc temporal_not()
  * @sqlop @p ~
  */
-PGDLLEXPORT Datum
+Datum
 Tnot_tbool(PG_FUNCTION_ARGS)
 {
   Temporal *temp = PG_GETARG_TEMPORAL_P(0);
   Temporal *result = tnot_tbool(temp);
   PG_FREE_IF_COPY(temp, 0);
+  PG_RETURN_POINTER(result);
+}
+
+/*****************************************************************************
+ * Temporal when
+ *****************************************************************************/
+
+PGDLLEXPORT Datum Tbool_when(PG_FUNCTION_ARGS);
+PG_FUNCTION_INFO_V1(Tbool_when);
+/**
+ * @ingroup mobilitydb_temporal_bool
+ * @brief Return the period set in which a temporal boolean takes value true
+ * @sqlfunc when()
+ */
+Datum
+Tbool_when(PG_FUNCTION_ARGS)
+{
+  Temporal *temp = PG_GETARG_TEMPORAL_P(0);
+  SpanSet *result = tbool_when_true(temp);
+  PG_FREE_IF_COPY(temp, 0);
+  if (! result)
+    PG_RETURN_NULL();
   PG_RETURN_POINTER(result);
 }
 

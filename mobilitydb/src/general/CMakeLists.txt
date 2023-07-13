@@ -1,7 +1,11 @@
 add_library(pg_general OBJECT
   doublen.c
   geo_constructors.c
-  periodset.c
+  meos_catalog.c
+  set.c
+  set_gin.c
+  set_aggfuncs.c
+  set_ops.c
   skiplist.c
   span.c
   span_aggfuncs.c
@@ -10,13 +14,14 @@ add_library(pg_general OBJECT
   span_spgist.c
   span_ops.c
   span_selfuncs.c
+  spanset.c
+  spanset_ops.c
   tbool_boolops.c
   tbox.c
   temporal.c
   temporal_aggfuncs.c
   temporal_analyze.c
   temporal_boxops.c
-  temporal_catalog.c
   temporal_compops.c
   temporal_gist.c
   temporal_posops.c
@@ -25,19 +30,14 @@ add_library(pg_general OBJECT
   temporal_spgist.c
   temporal_supportfn.c
   temporal_tile.c
-  temporal_util.c
   temporal_waggfuncs.c
-  temporal_in.c
-  temporal_out.c
   time_aggfuncs.c
-  time_ops.c
-  timestampset.c
-  tinstant.c
   tnumber_distance.c
   tnumber_gist.c
   tnumber_mathfuncs.c
-  tnumber_selfuncs.c
   tnumber_spgist.c
-  tsequence.c
   ttext_textfuncs.c
+  type_in.c
+  type_out.c
+  type_util.c
 )

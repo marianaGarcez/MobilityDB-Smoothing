@@ -263,7 +263,7 @@
 #define HAVE_GETRUSAGE 1
 
 /* Define to 1 if you have the `gettimeofday' function. */
-/* #undef HAVE_GETTIMEOFDAY */
+#define HAVE_GETTIMEOFDAY /* MSYS2 UCRT64 provides this function */
 
 /* Define to 1 if you have the <gssapi/gssapi.h> header file. */
 /* #undef HAVE_GSSAPI_GSSAPI_H */
@@ -582,16 +582,16 @@
 #define HAVE_STRUCT_SOCKADDR_STORAGE 1
 
 /* Define to 1 if `ss_family' is a member of `struct sockaddr_storage'. */
-#define HAVE_STRUCT_SOCKADDR_STORAGE_SS_FAMILY 1
+#define HAVE_STRUCT_SOCKADDR_store_SS_FAMILY 1
 
 /* Define to 1 if `ss_len' is a member of `struct sockaddr_storage'. */
-/* #undef HAVE_STRUCT_SOCKADDR_STORAGE_SS_LEN */
+/* #undef HAVE_STRUCT_SOCKADDR_store_SS_LEN */
 
 /* Define to 1 if `__ss_family' is a member of `struct sockaddr_storage'. */
-/* #undef HAVE_STRUCT_SOCKADDR_STORAGE___SS_FAMILY */
+/* #undef HAVE_STRUCT_SOCKADDR_store___SS_FAMILY */
 
 /* Define to 1 if `__ss_len' is a member of `struct sockaddr_storage'. */
-/* #undef HAVE_STRUCT_SOCKADDR_STORAGE___SS_LEN */
+/* #undef HAVE_STRUCT_SOCKADDR_store___SS_LEN */
 
 /* Define to 1 if the system has the type `struct sockaddr_un'. */
 #define HAVE_STRUCT_SOCKADDR_UN 1

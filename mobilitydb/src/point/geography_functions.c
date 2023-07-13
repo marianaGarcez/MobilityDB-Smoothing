@@ -1,12 +1,12 @@
 /*****************************************************************************
  *
  * This MobilityDB code is provided under The PostgreSQL License.
- * Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+ * Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
  * contributors
  *
  * MobilityDB includes portions of PostGIS version 3 source code released
  * under the GNU General Public License (GPLv2 or later).
- * Copyright (c) 2001-2022, PostGIS contributors
+ * Copyright (c) 2001-2023, PostGIS contributors
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written
@@ -23,11 +23,12 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
  * AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
- * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  *****************************************************************************/
 
 /**
+ * @file
  * @brief Spatial functions for PostGIS geography.
  *
  * These functions are supposed to be included in a forthcoming version of
@@ -48,6 +49,8 @@
 #include <liblwgeom_internal.h>
 #include <lwgeom_pg.h>
 #include <lwgeodetic_tree.h>
+/* MEOS */
+#include <meos.h>
 /* MobilityDB */
 #include "point/tpoint_spatialfuncs.h"
 
@@ -55,6 +58,9 @@
  * Closest point and closest line functions for geographies.
  ***********************************************************************/
 
+/**
+ * @brief Closest point function for PostGIS geography.
+ */
 static LWGEOM *
 geography_tree_closestpoint(const GSERIALIZED* g1, const GSERIALIZED* g2, double threshold)
 {
@@ -93,12 +99,14 @@ geography_tree_closestpoint(const GSERIALIZED* g1, const GSERIALIZED* g2, double
   return result;
 }
 
-/**
-Returns the point in first input geography that is closest to the second input geography in 2d
-*/
-
+PGDLLEXPORT Datum geography_closestpoint(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(geography_closestpoint);
-Datum geography_closestpoint(PG_FUNCTION_ARGS)
+/**
+ * @brief Return the point in first input geography that is closest to the
+ * second input geography in 2d
+*/
+Datum
+geography_closestpoint(PG_FUNCTION_ARGS)
 {
   GSERIALIZED* g1 = NULL;
   GSERIALIZED* g2 = NULL;
@@ -120,10 +128,6 @@ Datum geography_closestpoint(PG_FUNCTION_ARGS)
   ensure_same_srid(gserialized_get_srid(g1), gserialized_get_srid(g2));
 
   point = geography_tree_closestpoint(g1, g2, FP_TOLERANCE);
-
-  if (lwgeom_is_empty(point))
-    PG_RETURN_NULL();
-
   result = geography_serialize(point);
   lwgeom_free(point);
 
@@ -134,12 +138,14 @@ Datum geography_closestpoint(PG_FUNCTION_ARGS)
 
 /*****************************************************************************/
 
-/**
-Returns the point in first input geography that is closest to the second
-input geography in 2d
-*/
+PGDLLEXPORT Datum geography_shortestline(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(geography_shortestline);
-Datum geography_shortestline(PG_FUNCTION_ARGS)
+/**
+ * @brief Return the point in first input geography that is closest to the
+ * second input geography in 2d
+*/
+Datum
+geography_shortestline(PG_FUNCTION_ARGS)
 {
   /* Get our geography objects loaded into memory. */
   GSERIALIZED *g1 = PG_GETARG_GSERIALIZED_P(0);
@@ -163,6 +169,9 @@ Datum geography_shortestline(PG_FUNCTION_ARGS)
  * ST_LineSubstring for geographies
  ***********************************************************************/
 
+/**
+ * @brief Returns the lenght of the point array wrt the sphere
+ */
 static double
 ptarray_length_sphere(const POINTARRAY *pa)
 {
@@ -190,6 +199,9 @@ ptarray_length_sphere(const POINTARRAY *pa)
   return length;
 }
 
+/**
+ * @brief Return the part of a line between two fractional locations.
+ */
 static POINTARRAY *
 geography_substring(POINTARRAY *ipa, double from, double to,
   double tolerance)
@@ -328,8 +340,13 @@ END:
   return dpa;
 }
 
+PGDLLEXPORT Datum geography_line_substring(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(geography_line_substring);
-Datum geography_line_substring(PG_FUNCTION_ARGS)
+/**
+ * @brief Return the part of a line between two fractional locations.
+ */
+Datum
+geography_line_substring(PG_FUNCTION_ARGS)
 {
   GSERIALIZED *gs = PG_GETARG_GSERIALIZED_P(0);
   double from_fraction = PG_GETARG_FLOAT8(1);
@@ -395,9 +412,12 @@ Datum geography_line_substring(PG_FUNCTION_ARGS)
  * Interpolate a point along a geographic line.
  ***********************************************************************/
 
+/**
+ * @brief Interpolate a point along a geographic line.
+ */
 static POINTARRAY *
-geography_interpolate_points(const LWLINE *line,
-  double length_fraction, const SPHEROID *s, char repeat)
+geography_interpolate_points(const LWLINE *line, double length_fraction,
+  const SPHEROID *s, char repeat)
 {
   POINT4D pt;
   uint32_t i;
@@ -479,8 +499,13 @@ geography_interpolate_points(const LWLINE *line,
   return opa;
 }
 
+PGDLLEXPORT Datum geography_line_interpolate_point(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(geography_line_interpolate_point);
-Datum geography_line_interpolate_point(PG_FUNCTION_ARGS)
+/**
+ * @brief Interpolate a point along a geographic line.
+ */
+Datum
+geography_line_interpolate_point(PG_FUNCTION_ARGS)
 {
   GSERIALIZED *gs = PG_GETARG_GSERIALIZED_P(0);
   double distance_fraction = PG_GETARG_FLOAT8(1);
@@ -552,12 +577,15 @@ Datum geography_line_interpolate_point(PG_FUNCTION_ARGS)
  * Locate a point along a geographic line.
  ***********************************************************************/
 
+/**
+ * @brief Locate a point along the point array defining a geographic line.
+ */
 static double
 ptarray_locate_point_spheroid(const POINTARRAY *pa, const POINT4D *p4d,
   const SPHEROID *s, double tolerance, double *mindistout, POINT4D *proj4d)
 {
   GEOGRAPHIC_EDGE e;
-  GEOGRAPHIC_POINT a, b, nearest;
+  GEOGRAPHIC_POINT a, b, nearest = {0}; /* make compiler quiet */
   POINT4D p1, p2;
   const POINT2D *p;
   POINT2D proj;
@@ -567,9 +595,9 @@ ptarray_locate_point_spheroid(const POINTARRAY *pa, const POINT4D *p4d,
   double za = 0.0, zb = 0.0;
   double distance,
     length,   /* Used for computing lengths */
-    seglength = 0, /* length of the segment where the closest point is located */
-    partlength, /* length from the beginning of the point array to the closest point */
-    totlength;  /* length of the point array */
+    seglength = 0.0,  /* length of the segment where the closest point is located */
+    partlength = 0.0, /* length from the beginning of the point array to the closest point */
+    totlength = 0.0;  /* length of the point array */
 
   /* Initialize our point */
   geographic_point_init(p4d->x, p4d->y, &a);
@@ -648,9 +676,6 @@ ptarray_locate_point_spheroid(const POINTARRAY *pa, const POINT4D *p4d,
   if ( hasz )
     za = p1.z;
 
-  partlength = 0.0;
-  totlength = 0.0;
-
   /* Loop and sum the length for each segment */
   for ( i = 1; i < pa->npoints; i++ )
   {
@@ -723,8 +748,13 @@ ptarray_locate_point_spheroid(const POINTARRAY *pa, const POINT4D *p4d,
 
   /* Location of any point on a zero-length line is 0 */
   /* See http://trac.osgeo.org/postgis/ticket/1772#comment:2 */
-  if ( totlength == 0 )
-    return 0;
+  if ( partlength == 0 || totlength == 0 )
+    return 0.0;
+
+  /* For robustness, force 0 when closest point == startpoint */
+  p = getPoint2d_cp(pa, 0);
+  if ( seg == 0 && p2d_same(&proj, p) )
+    return 0.0;
 
   /* For robustness, force 1 when closest point == endpoint */
   p = getPoint2d_cp(pa, pa->npoints - 1);
@@ -734,8 +764,13 @@ ptarray_locate_point_spheroid(const POINTARRAY *pa, const POINT4D *p4d,
   return partlength / totlength;
 }
 
+PGDLLEXPORT Datum geography_line_locate_point(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(geography_line_locate_point);
-Datum geography_line_locate_point(PG_FUNCTION_ARGS)
+/**
+ * @brief Locate a point along a geographic line.
+ */
+Datum
+geography_line_locate_point(PG_FUNCTION_ARGS)
 {
   GSERIALIZED *gs1 = PG_GETARG_GSERIALIZED_P(0);
   GSERIALIZED *gs2 = PG_GETARG_GSERIALIZED_P(1);
@@ -765,10 +800,6 @@ Datum geography_line_locate_point(PG_FUNCTION_ARGS)
   // spheroid_init_from_srid(fcinfo, gserialized_get_srid(gs1), &s);
   spheroid_init(&s, WGS84_MAJOR_AXIS, WGS84_MINOR_AXIS);
 
-  /* Set to sphere if requested */
-  if ( ! use_spheroid )
-    s.a = s.b = s.radius;
-
   if ( gserialized_get_type(gs1) != LINETYPE )
   {
     elog(ERROR,"line_locate_point: 1st arg isn't a line");
@@ -780,7 +811,7 @@ Datum geography_line_locate_point(PG_FUNCTION_ARGS)
     PG_RETURN_NULL();
   }
 
-  /* User requests spherical calculation, turn our spheroid into a sphere */
+  /* Set to sphere if requested */
   if ( ! use_spheroid )
     s.a = s.b = s.radius;
   else

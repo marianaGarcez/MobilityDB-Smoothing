@@ -1,12 +1,12 @@
 ﻿-------------------------------------------------------------------------------
 --
 -- This MobilityDB code is provided under The PostgreSQL License.
--- Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+-- Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
 -- contributors
 --
 -- MobilityDB includes portions of PostGIS version 3 source code released
 -- under the GNU General Public License (GPLv2 or later).
--- Copyright (c) 2001-2022, PostGIS contributors
+-- Copyright (c) 2001-2023, PostGIS contributors
 --
 -- Permission to use, copy, modify, and distribute this software and its
 -- documentation for any purpose, without fee, and without a written
@@ -23,7 +23,7 @@
 -- INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
 -- AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
 -- AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
--- PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+-- PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
 --
 -------------------------------------------------------------------------------
 
@@ -45,12 +45,15 @@ SELECT npoint 'npoint(1,0.5)xxx';
 SELECT nsegment 'nsegment(1,0.5,0.7)';
 SELECT nsegment '  nsegment  (  1  ,  0.5  ,  0.7 ) ';
 /* Errors */
+SELECT nsegment 'Nsegment 1, 1.1)';
+SELECT nsegment(1, 1.1);
 SELECT nsegment 'segment(1,0.5,0.7)';
 SELECT nsegment 'nsegment(1,0.5,0.7';
 SELECT nsegment 'nsegment(1 0.5 0.7)';
 SELECT nsegment 'nsegment(1000,0.5,0.7)';
 SELECT nsegment 'nsegment(1,1.5,0.7)';
 SELECT nsegment 'nsegment(1,0.5,0.7)xxx';
+SELECT nsegment 'NSegment(1, 1, 1.5)';
 
 -------------------------------------------------------------------------------
 -- Constructors
@@ -139,7 +142,6 @@ SELECT npoint 'npoint(1,0.5)' >= npoint 'npoint(1,0.7)';
 SELECT npoint 'npoint(1,0.5)' >= npoint 'npoint(2,0.5)';
 
 SELECT nsegment_cmp(nsegment 'nsegment(1,0.3,0.5)', nsegment 'nsegment(1,0.3,0.4)');
-
 
 SELECT nsegment 'nsegment(1,0.3,0.5)' = nsegment 'nsegment(1,0.3,0.5)';
 SELECT nsegment 'nsegment(1,0.3,0.5)' = nsegment 'nsegment(1,0.3,0.7)';

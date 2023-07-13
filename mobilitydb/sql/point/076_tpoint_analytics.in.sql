@@ -1,12 +1,12 @@
 /*****************************************************************************
  *
  * This MobilityDB code is provided under The PostgreSQL License.
- * Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+ * Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
  * contributors
  *
  * MobilityDB includes portions of PostGIS version 3 source code released
  * under the GNU General Public License (GPLv2 or later).
- * Copyright (c) 2001-2022, PostGIS contributors
+ * Copyright (c) 2001-2023, PostGIS contributors
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written
@@ -23,7 +23,7 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
  * AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
- * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  *****************************************************************************/
 
@@ -76,49 +76,59 @@ CREATE CAST (geography AS tgeogpoint) WITH FUNCTION tgeogpoint(geography);
 
 CREATE FUNCTION geoMeasure(tgeompoint, tfloat, boolean DEFAULT FALSE)
 RETURNS geometry
-AS 'MODULE_PATHNAME', 'Tpoint_to_geo_measure'
+AS 'MODULE_PATHNAME', 'Tpoint_to_geo_meas'
 LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
 
 CREATE FUNCTION geoMeasure(tgeogpoint, tfloat, boolean DEFAULT FALSE)
 RETURNS geography
-AS 'MODULE_PATHNAME', 'Tpoint_to_geo_measure'
+AS 'MODULE_PATHNAME', 'Tpoint_to_geo_meas'
 LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
 
 /*****************************************************************************/
 
-CREATE FUNCTION simplify(tfloat, float8)
+CREATE FUNCTION minDistSimplify(tfloat, float)
 RETURNS tfloat
-AS 'MODULE_PATHNAME', 'Tfloat_simplify'
+AS 'MODULE_PATHNAME', 'Temporal_simplify_min_dist'
 LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-
-CREATE FUNCTION simplify(tgeompoint, float8, boolean DEFAULT FALSE)
+CREATE FUNCTION minDistSimplify(tgeompoint, float)
 RETURNS tgeompoint
-AS 'MODULE_PATHNAME', 'Tpoint_simplify'
+AS 'MODULE_PATHNAME', 'Temporal_simplify_min_dist'
+LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+CREATE FUNCTION minDistSimplify(tgeogpoint, float)
+RETURNS tgeompoint
+AS 'MODULE_PATHNAME', 'Temporal_simplify_min_dist'
 LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
 
-
-CREATE FUNCTION outlierh(tfloat, float8)
+CREATE FUNCTION minTimeDeltaSimplify(tfloat, interval)
 RETURNS tfloat
-AS 'MODULE_PATHNAME', 'Tfloat_outlierh'
+AS 'MODULE_PATHNAME', 'Temporal_simplify_min_tdelta'
 LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-
-
-CREATE FUNCTION outlierh(tgeompoint, float8, boolean DEFAULT FALSE)
+CREATE FUNCTION minTimeDeltaSimplify(tgeompoint, interval)
 RETURNS tgeompoint
-AS 'MODULE_PATHNAME', 'Tpoint_outlierh'
+AS 'MODULE_PATHNAME', 'Temporal_simplify_min_tdelta'
+LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+CREATE FUNCTION minTimeDeltaSimplify(tgeogpoint, interval)
+RETURNS tgeompoint
+AS 'MODULE_PATHNAME', 'Temporal_simplify_min_tdelta'
 LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
 
-
-CREATE FUNCTION outlierkf(tfloat, float8)
+CREATE FUNCTION maxDistSimplify(tfloat, float, boolean DEFAULT TRUE)
 RETURNS tfloat
-AS 'MODULE_PATHNAME', 'Tfloat_outlierkf'
+AS 'MODULE_PATHNAME', 'Temporal_simplify_max_dist'
 LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-
-CREATE FUNCTION outlierkf(tgeompoint, float8, boolean DEFAULT FALSE)
+CREATE FUNCTION maxDistSimplify(tgeompoint, float, boolean DEFAULT TRUE)
 RETURNS tgeompoint
-AS 'MODULE_PATHNAME', 'Tpoint_outlierkf'
+AS 'MODULE_PATHNAME', 'Temporal_simplify_max_dist'
 LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
 
+CREATE FUNCTION DouglasPeuckerSimplify(tfloat, float, boolean DEFAULT TRUE)
+RETURNS tfloat
+AS 'MODULE_PATHNAME', 'Temporal_simplify_dp'
+LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+CREATE FUNCTION DouglasPeuckerSimplify(tgeompoint, float, boolean DEFAULT TRUE)
+RETURNS tgeompoint
+AS 'MODULE_PATHNAME', 'Temporal_simplify_dp'
+LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
 
 CREATE TYPE geom_times AS (
   geom geometry,

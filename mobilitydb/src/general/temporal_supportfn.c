@@ -1,12 +1,12 @@
 /*****************************************************************************
  *
  * This MobilityDB code is provided under The PostgreSQL License.
- * Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+ * Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
  * contributors
  *
  * MobilityDB includes portions of PostGIS version 3 source code released
  * under the GNU General Public License (GPLv2 or later).
- * Copyright (c) 2001-2022, PostGIS contributors
+ * Copyright (c) 2001-2023, PostGIS contributors
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written
@@ -23,11 +23,12 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
  * AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
- * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  *****************************************************************************/
 
 /**
+ * @file
  * @brief Index support functions for temporal types.
  */
 
@@ -55,48 +56,29 @@
 #include <utils/numeric.h>
 #include <utils/syscache.h>
 /* MEOS */
-#include "general/temporal_catalog.h"
+#include <meos.h>
+#include "general/meos_catalog.h"
+#include "general/temporal_boxops.h"
 /* MobilityDB */
-#include "pg_general/temporal_catalog.h"
+#include "pg_general/meos_catalog.h"
 #include "pg_general/temporal_selfuncs.h"
-#include "pg_general/tnumber_selfuncs.h"
 #include "pg_point/tpoint_selfuncs.h"
-#include "pg_npoint/tnpoint_selfuncs.h"
 
 enum TEMPORAL_FUNCTION_IDX
 {
-  /* intersects<Time> functions */
-  INTERSECTS_TIMESTAMP_IDX       = 0,
-  INTERSECTS_TIMESTAMPSET_IDX    = 1,
-  INTERSECTS_PERIOD_IDX          = 2,
-  INTERSECTS_PERIODSET_IDX       = 3,
   /* Ever/always comparison functions */
-  EVER_EQ_IDX                    = 4,
-  ALWAYS_EQ_IDX                  = 5,
+  EVER_EQ_IDX                    = 1,
+  ALWAYS_EQ_IDX                  = 2,
   /* Ever spatial relationships */
-  CONTAINS_IDX                   = 6,
-  DISJOINT_IDX                   = 7,
-  INTERSECTS_IDX                 = 8,
-  TOUCHES_IDX                    = 9,
-  DWITHIN_IDX                    = 10,
-};
-
-static const int16 TemporalStrategies[] =
-{
-  /* intersects<Time> functions */
-  [INTERSECTS_TIMESTAMP_IDX]     = RTOverlapStrategyNumber,
-  [INTERSECTS_TIMESTAMPSET_IDX]  = RTOverlapStrategyNumber,
-  [INTERSECTS_PERIOD_IDX]        = RTOverlapStrategyNumber,
-  [INTERSECTS_PERIODSET_IDX]     = RTOverlapStrategyNumber,
+  ECONTAINS_IDX                   = 3,
+  EDISJOINT_IDX                   = 4,
+  EINTERSECTS_IDX                 = 5,
+  ETOUCHES_IDX                    = 6,
+  EDWITHIN_IDX                    = 7,
 };
 
 static const int16 TNumberStrategies[] =
 {
-  /* intersects<Time> functions */
-  [INTERSECTS_TIMESTAMP_IDX]     = RTOverlapStrategyNumber,
-  [INTERSECTS_TIMESTAMPSET_IDX]  = RTOverlapStrategyNumber,
-  [INTERSECTS_PERIOD_IDX]        = RTOverlapStrategyNumber,
-  [INTERSECTS_PERIODSET_IDX]     = RTOverlapStrategyNumber,
   /* Ever/always comparison functions */
   [EVER_EQ_IDX]                  = RTOverlapStrategyNumber,
   [ALWAYS_EQ_IDX]                = RTOverlapStrategyNumber,
@@ -104,36 +86,26 @@ static const int16 TNumberStrategies[] =
 
 static const int16 TPointStrategies[] =
 {
-  /* intersects<Time> functions */
-  [INTERSECTS_TIMESTAMP_IDX]     = RTOverlapStrategyNumber,
-  [INTERSECTS_TIMESTAMPSET_IDX]  = RTOverlapStrategyNumber,
-  [INTERSECTS_PERIOD_IDX]        = RTOverlapStrategyNumber,
-  [INTERSECTS_PERIODSET_IDX]     = RTOverlapStrategyNumber,
   /* Ever/always comparison functions */
   [EVER_EQ_IDX]                  = RTOverlapStrategyNumber,
   [ALWAYS_EQ_IDX]                = RTOverlapStrategyNumber,
   /* Ever spatial relationships */
-  [CONTAINS_IDX]                 = RTOverlapStrategyNumber,
-  [DISJOINT_IDX]                 = RTOverlapStrategyNumber,
-  [INTERSECTS_IDX]               = RTOverlapStrategyNumber,
-  [TOUCHES_IDX]                  = RTOverlapStrategyNumber,
-  [DWITHIN_IDX]                  = RTOverlapStrategyNumber,
+  [ECONTAINS_IDX]                 = RTOverlapStrategyNumber,
+  [EDISJOINT_IDX]                 = RTOverlapStrategyNumber,
+  [EINTERSECTS_IDX]               = RTOverlapStrategyNumber,
+  [ETOUCHES_IDX]                  = RTOverlapStrategyNumber,
+  [EDWITHIN_IDX]                  = RTOverlapStrategyNumber,
 };
 
 #if NPOINT
 static const int16 TNPointStrategies[] =
 {
-  /* intersects<Time> functions */
-  [INTERSECTS_TIMESTAMP_IDX]     = RTOverlapStrategyNumber,
-  [INTERSECTS_TIMESTAMPSET_IDX]  = RTOverlapStrategyNumber,
-  [INTERSECTS_PERIOD_IDX]        = RTOverlapStrategyNumber,
-  [INTERSECTS_PERIODSET_IDX]     = RTOverlapStrategyNumber,
   /* Ever spatial relationships */
-  [CONTAINS_IDX]                 = RTOverlapStrategyNumber,
-  [DISJOINT_IDX]                 = RTOverlapStrategyNumber,
-  [INTERSECTS_IDX]               = RTOverlapStrategyNumber,
-  [TOUCHES_IDX]                  = RTOverlapStrategyNumber,
-  [DWITHIN_IDX]                  = RTOverlapStrategyNumber,
+  [ECONTAINS_IDX]                 = RTOverlapStrategyNumber,
+  [EDISJOINT_IDX]                 = RTOverlapStrategyNumber,
+  [EINTERSECTS_IDX]               = RTOverlapStrategyNumber,
+  [ETOUCHES_IDX]                  = RTOverlapStrategyNumber,
+  [EDWITHIN_IDX]                  = RTOverlapStrategyNumber,
 };
 #endif /* NPOINT */
 
@@ -144,20 +116,10 @@ static const int16 TNPointStrategies[] =
 */
 static const IndexableFunction TemporalIndexableFunctions[] =
 {
-  /* intersects<Time> functions */
-  {"intersectstimestamp", INTERSECTS_TIMESTAMP_IDX, 2, 0},
-  {"intersectstimestampset", INTERSECTS_TIMESTAMPSET_IDX, 2, 0},
-  {"intersectsperiod", INTERSECTS_PERIOD_IDX, 2, 0},
-  {"intersectsperiodset", INTERSECTS_PERIODSET_IDX, 2, 0},
   {NULL, 0, 0, 0}
 };
 
 static const IndexableFunction TNumberIndexableFunctions[] = {
-  /* intersects<Time> functions */
-  {"intersectstimestamp", INTERSECTS_TIMESTAMP_IDX, 2, 0},
-  {"intersectstimestampset", INTERSECTS_TIMESTAMPSET_IDX, 2, 0},
-  {"intersectsperiod", INTERSECTS_PERIOD_IDX, 2, 0},
-  {"intersectsperiodset", INTERSECTS_PERIODSET_IDX, 2, 0},
   /* Ever/always comparison functions */
   {"ever_eq", EVER_EQ_IDX, 2, 0},
   {"always_eq", ALWAYS_EQ_IDX, 2, 0},
@@ -168,42 +130,30 @@ static const IndexableFunction TPointIndexableFunctions[] = {
   /* Ever/always comparison functions */
   {"ever_eq", EVER_EQ_IDX, 2, 0},
   {"always_eq", ALWAYS_EQ_IDX, 2, 0},
-  /* intersects<Time> functions */
-  {"intersectstimestamp", INTERSECTS_TIMESTAMP_IDX, 2, 0},
-  {"intersectstimestampset", INTERSECTS_TIMESTAMPSET_IDX, 2, 0},
-  {"intersectsperiod", INTERSECTS_PERIOD_IDX, 2, 0},
-  {"intersectsperiodset", INTERSECTS_PERIODSET_IDX, 2, 0},
   /* Ever spatial relationships */
-  {"contains", CONTAINS_IDX, 2, 0},
-  {"disjoint", DISJOINT_IDX, 2, 0},
-  {"intersects", INTERSECTS_IDX, 2, 0},
-  {"touches", TOUCHES_IDX, 2, 0},
-  {"dwithin", DWITHIN_IDX, 3, 3},
+  {"econtains", ECONTAINS_IDX, 2, 0},
+  {"edisjoint", EDISJOINT_IDX, 2, 0},
+  {"eintersects", EINTERSECTS_IDX, 2, 0},
+  {"etouches", ETOUCHES_IDX, 2, 0},
+  {"edwithin", EDWITHIN_IDX, 3, 3},
   {NULL, 0, 0, 0}
 };
 
 #if NPOINT
 static const IndexableFunction TNPointIndexableFunctions[] = {
-  /* intersects<Time> functions */
-  {"intersectstimestamp", INTERSECTS_TIMESTAMP_IDX, 2, 0},
-  {"intersectstimestampset", INTERSECTS_TIMESTAMPSET_IDX, 2, 0},
-  {"intersectsperiod", INTERSECTS_PERIOD_IDX, 2, 0},
-  {"intersectsperiodset", INTERSECTS_PERIODSET_IDX, 2, 0},
   /* Ever spatial relationships */
-  {"contains", CONTAINS_IDX, 2, 0},
-  {"disjoint", DISJOINT_IDX, 2, 0},
-  {"intersects", INTERSECTS_IDX, 2, 0},
-  {"touches", TOUCHES_IDX, 2, 0},
-  {"dwithin", DWITHIN_IDX, 3, 3},
+  {"econtains", ECONTAINS_IDX, 2, 0},
+  {"edisjoint", EDISJOINT_IDX, 2, 0},
+  {"eintersects", EINTERSECTS_IDX, 2, 0},
+  {"etouches", ETOUCHES_IDX, 2, 0},
+  {"edwithin", EDWITHIN_IDX, 3, 3},
   {NULL, 0, 0, 0}
 };
 #endif /* NPOINT */
 
 static int16
-temporal_get_strategy_by_type(mobdbType temptype, uint16_t index)
+temporal_get_strategy_by_type(meosType temptype, uint16_t index)
 {
-  if (talpha_type(temptype))
-    return TemporalStrategies[index];
   if (tnumber_type(temptype))
     return TNumberStrategies[index];
   if (tgeo_type(temptype))
@@ -220,9 +170,9 @@ temporal_get_strategy_by_type(mobdbType temptype, uint16_t index)
  *****************************************************************************/
 
 /**
- * Is the function calling the support function one of those we will enhance
- * with index ops? If so, copy the metadata for the function into idxfn and
- * return true. If false... how did the support function get added, anyways?
+ * @brief Is the function calling the support function one of those we will
+ * enhance with index ops? If so, copy the metadata for the function into idxfn
+ * and return true. If false, how did the support function get added, anyways?
  */
 bool
 func_needs_index(Oid funcid, const IndexableFunction *idxfns,
@@ -244,8 +194,8 @@ func_needs_index(Oid funcid, const IndexableFunction *idxfns,
 }
 
 /**
- * We only add index enhancements for indexes that support range-based
- *searches like the && operator), so only implementations based on GIST
+ * @brief We only add index enhancements for indexes that support range-based
+ * searches like the && operator), so only implementations based on GIST
  * and SPGIST.
 */
 Oid
@@ -268,8 +218,9 @@ opFamilyAmOid(Oid opfamilyoid)
 /*****************************************************************************/
 
 /**
- * To apply the "expand for radius search" pattern we need access to the expand
- * function, so lookup the function Oid using the function name and type number.
+ * @brief To apply the "expand for radius search" pattern we need access to the
+ * expand function, so lookup the function Oid using the function name and
+ * type number.
  */
 static FuncExpr *
 makeExpandExpr(Node *arg, Node *radiusarg, Oid argoid, Oid retoid,
@@ -283,15 +234,15 @@ makeExpandExpr(Node *arg, Node *radiusarg, Oid argoid, Oid retoid,
 
   /* Expand function must be in same namespace as the caller */
   char *nspname = get_namespace_name(get_func_namespace(callingfunc));
-  char *funcname;
-  mobdbType argtype = oid_type(argoid);
+  char *funcname = NULL; /* make compiler quiet */
+  meosType argtype = oid_type(argoid);
   if (argtype == T_GEOMETRY || argtype == T_GEOGRAPHY || argtype == T_STBOX ||
       argtype == T_TGEOMPOINT || argtype == T_TGEOGPOINT
 #if NPOINT
       || argtype == T_TNPOINT
 #endif /* NPOINT */
       )
-    funcname = "expandspatial";
+    funcname = "expandspace";
   else
     elog(ERROR, "Unknown expand function for type %d", argoid);
   nspfunc = list_make2(makeString(nspname), makeString(funcname));
@@ -304,11 +255,68 @@ makeExpandExpr(Node *arg, Node *radiusarg, Oid argoid, Oid retoid,
     InvalidOid, InvalidOid, COERCE_EXPLICIT_CALL);
 }
 
+/**
+ * @brief To apply the "bunding box search" pattern we need access to the
+ * corresponding bbox function, so lookup the function Oid using the function
+ * name and type number.
+ */
+static FuncExpr *
+makeBboxExpr(Node *arg, Oid argoid, Oid retoid, Oid callingfunc)
+{
+  const Oid funcargs[1] = {argoid};
+  const bool noError = true;
+  List *nspfunc;
+  Oid funcoid;
+
+  /* Expand function must be in same namespace as the caller */
+  char *nspname = get_namespace_name(get_func_namespace(callingfunc));
+  char *funcname = NULL; /* make compiler quiet */
+  meosType argtype = oid_type(argoid);
+  if (argtype == T_TBOOL || argtype == T_TTEXT)
+    funcname = "span";
+  else if (argtype == T_INT4 || argtype == T_FLOAT8 ||
+           argtype == T_TINT || argtype == T_TFLOAT)
+    funcname = "tbox";
+  else if (argtype == T_GEOMETRY || argtype == T_GEOGRAPHY ||
+      argtype == T_TGEOMPOINT || argtype == T_TGEOGPOINT
+#if NPOINT
+      || argtype == T_NPOINT || argtype == T_TNPOINT
+#endif /* NPOINT */
+      )
+    funcname = "stbox";
+  else
+    elog(ERROR, "Unknown stbox function for type %d", argoid);
+  nspfunc = list_make2(makeString(nspname), makeString(funcname));
+  funcoid = LookupFuncName(nspfunc, 1, funcargs, noError);
+  if (funcoid == InvalidOid)
+    elog(ERROR, "unable to lookup '%s(Oid[%u])'", funcname, argoid);
+
+  return makeFuncExpr(funcoid, retoid, list_make1(arg),
+    InvalidOid, InvalidOid, COERCE_EXPLICIT_CALL);
+}
+
 /*****************************************************************************/
 
 /**
- * For functions that we want enhanced with spatial index lookups, add
- * this support function to the SQL function defintion, for example:
+ * @brief Transform the constant into a bounding box
+ */
+static meosType
+type_to_bbox(meosType type)
+{
+  if (span_basetype(type))
+    return basetype_spantype(type);
+  if (set_type(type))
+    return basetype_spantype(settype_basetype(type));
+  if (spanset_type(type))
+    return spansettype_spantype(type);
+  if (spatial_basetype(type))
+    return T_STBOX;
+  return type;
+}
+
+/**
+ * @brief For functions that we want enhanced with spatial index lookups, add
+ * this support function to the SQL function definition, for example:
  * @code
  * CREATE OR REPLACE FUNCTION ever_eq(tfloat, float)
  *   RETURNS boolean
@@ -338,28 +346,18 @@ temporal_supportfn_ext(FunctionCallInfo fcinfo, TemporalFamily tempfamily)
     SupportRequestSelectivity *req = (SupportRequestSelectivity *) rawreq;
     leftoid = exprType(linitial(req->args));
     rightoid = exprType(lsecond(req->args));
-    mobdbType ltype = oid_type(leftoid);
-    mobdbType rtype = oid_type(rightoid);
-    operid = oper_oid(OVERLAPS_OP, ltype, rtype);
+    meosType ltype = oid_type(leftoid);
+    meosType rtype = oid_type(rightoid);
+    /* Convert base type to bbox type */
+    meosType ltype1 = type_to_bbox(ltype);
+    meosType rtype1 = type_to_bbox(rtype);
+    operid = oper_oid(OVERLAPS_OP, ltype1, rtype1);
     if (req->is_join)
-    {
-      if (tempfamily == TEMPORALTYPE || tempfamily == TNUMBERTYPE)
-        req->selectivity = temporal_joinsel(req->root, operid, req->args,
-          req->jointype, req->sjinfo, tempfamily);
-      else /* (tempfamily == TPOINTTYPE || tempfamily == TNPOINTTYPE) */
-        req->selectivity = tpoint_joinsel(req->root, operid, req->args,
-          req->jointype, req->sjinfo, Int32GetDatum(0), /* ND mode TO GENERALIZE */
-          tempfamily);
-    }
+      req->selectivity = temporal_joinsel(req->root, operid, req->args,
+        req->jointype, req->sjinfo, tempfamily);
     else
-    {
-      if (tempfamily == TEMPORALTYPE || tempfamily == TNUMBERTYPE)
-        req->selectivity = temporal_sel(req->root, operid, req->args,
-          req->varRelid, tempfamily);
-      else /* (tempfamily == TPOINTTYPE || tempfamily == TNPOINTTYPE) */
-        req->selectivity = tpoint_sel(req->root, operid, req->args,
-          req->varRelid, tempfamily);
-    }
+      req->selectivity = temporal_sel(req->root, operid, req->args,
+        req->varRelid, tempfamily);
     PG_RETURN_POINTER(req);
   }
 
@@ -473,8 +471,8 @@ temporal_supportfn_ext(FunctionCallInfo fcinfo, TemporalFamily tempfamily)
        */
       leftoid = exprType(leftarg);
       rightoid = exprType(rightarg);
-      mobdbType lefttype = oid_type(leftoid);
-      mobdbType righttype = oid_type(rightoid);
+      meosType lefttype = oid_type(leftoid);
+      meosType righttype = oid_type(rightoid);
 
       /*
        * Given the index operator family and the arguments and the desired
@@ -486,16 +484,20 @@ temporal_supportfn_ext(FunctionCallInfo fcinfo, TemporalFamily tempfamily)
         PG_RETURN_POINTER((Node *) NULL);
 
       /* Determine type of right argument of the index support expression
-       * depending on whether there is an expand function */
+       * which is a bounding box */
       exproid = rightoid;
-      if (idxfn.expand_arg &&
-          (righttype == T_GEOMETRY || righttype == T_GEOGRAPHY ||
-           righttype == T_STBOX || righttype == T_TGEOMPOINT ||
-           righttype == T_TGEOGPOINT
+      if (righttype == T_TBOOL || righttype == T_TTEXT)
+        exproid = type_oid(T_TSTZSPAN);
+      else if (righttype == T_INT4 || righttype == T_FLOAT8 ||
+          righttype == T_TINT || righttype == T_TFLOAT || righttype == T_TBOX)
+        exproid = type_oid(T_TBOX);
+      else if (righttype == T_GEOMETRY || righttype == T_GEOGRAPHY ||
+          righttype == T_TGEOMPOINT || righttype == T_TGEOGPOINT ||
+          righttype == T_STBOX
 #if NPOINT
-           || righttype == T_TNPOINT
+          || righttype == T_NPOINT || righttype == T_TNPOINT
 #endif /* NPOINT */
-           ))
+          )
         exproid = type_oid(T_STBOX);
       else
         PG_RETURN_POINTER((Node *) NULL);
@@ -516,7 +518,6 @@ temporal_supportfn_ext(FunctionCallInfo fcinfo, TemporalFamily tempfamily)
       {
         Expr *expr;
         Node *radiusarg = (Node *) list_nth(args, idxfn.expand_arg - 1);
-
         FuncExpr *expandexpr = makeExpandExpr(rightarg, radiusarg, rightoid,
           exproid, funcoid);
 
@@ -525,7 +526,8 @@ temporal_supportfn_ext(FunctionCallInfo fcinfo, TemporalFamily tempfamily)
          * (not volatile or dependent on the target index table)
          */
 #if POSTGRESQL_VERSION_NUMBER >= 140000
-        if (!is_pseudo_constant_for_index(req->root, (Node *)expandexpr, req->index))
+        if (!is_pseudo_constant_for_index(req->root, (Node *) expandexpr,
+          req->index))
 #else
         if (!is_pseudo_constant_for_index((Node *)expandexpr, req->index))
 #endif
@@ -539,25 +541,33 @@ temporal_supportfn_ext(FunctionCallInfo fcinfo, TemporalFamily tempfamily)
       }
       /*
        * For the intersects variants we just need to return an index OpExpr
-       * with the original arguments on each side. For example,
-       * intersects(g1, g2) yields: g1 && g2
+       * where the original argument on one side may be replaced by a bounding
+       * box if it is not already one. For example, if g2 is a geometry then
+       * intersects(g1, g2) yields: g1 && stbox(g2)
        */
       else
       {
         Expr *expr;
+        FuncExpr *bboxexpr;
+        if (bbox_type(righttype))
+          bboxexpr = (FuncExpr *) rightarg;
+        else
+          bboxexpr = makeBboxExpr(rightarg, rightoid, exproid, funcoid);
+
         /*
          * The comparison expression has to be a pseudoconstant
          * (not volatile or dependent on the target index's table)
          */
 #if POSTGRESQL_VERSION_NUMBER >= 140000
-        if (!is_pseudo_constant_for_index(req->root, rightarg, req->index))
+        if (!is_pseudo_constant_for_index(req->root, (Node *) bboxexpr,
+          req->index))
 #else
-        if (!is_pseudo_constant_for_index(rightarg, req->index))
+        if (!is_pseudo_constant_for_index((Node *) bboxexpr, req->index))
 #endif
           PG_RETURN_POINTER((Node *) NULL);
 
         expr = make_opclause(idxoperid, BOOLOID, false, (Expr *) leftarg,
-          (Expr *) rightarg, InvalidOid, InvalidOid);
+          (Expr *) bboxexpr, InvalidOid, InvalidOid);
 
         ret = (Node *)(list_make1(expr));
       }
@@ -576,42 +586,35 @@ temporal_supportfn_ext(FunctionCallInfo fcinfo, TemporalFamily tempfamily)
   PG_RETURN_POINTER(ret);
 }
 
-PG_FUNCTION_INFO_V1(Temporal_supportfn);
-/**
- * Support function for temporal types
- */
-PGDLLEXPORT Datum
-Temporal_supportfn(PG_FUNCTION_ARGS)
-{
-  return temporal_supportfn_ext(fcinfo, TEMPORALTYPE);
-}
-
+PGDLLEXPORT Datum Tnumber_supportfn(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Tnumber_supportfn);
 /**
- * Support function for temporal number types
+ * @brief Support function for temporal number types
  */
-PGDLLEXPORT Datum
+Datum
 Tnumber_supportfn(PG_FUNCTION_ARGS)
 {
   return temporal_supportfn_ext(fcinfo, TNUMBERTYPE);
 }
 
+PGDLLEXPORT Datum Tpoint_supportfn(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Tpoint_supportfn);
 /**
- * Support function for temporal number types
+ * @brief Support function for temporal number types
  */
-PGDLLEXPORT Datum
+Datum
 Tpoint_supportfn(PG_FUNCTION_ARGS)
 {
   return temporal_supportfn_ext(fcinfo, TPOINTTYPE);
 }
 
 #if NPOINT
+PGDLLEXPORT Datum Tnpoint_supportfn(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Tnpoint_supportfn);
 /**
- * Support function for temporal number types
+ * @brief Support function for temporal number types
  */
-PGDLLEXPORT Datum
+Datum
 Tnpoint_supportfn(PG_FUNCTION_ARGS)
 {
   return temporal_supportfn_ext(fcinfo, TNPOINTTYPE);

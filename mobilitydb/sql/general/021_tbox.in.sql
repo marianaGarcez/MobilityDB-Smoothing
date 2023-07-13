@@ -1,12 +1,12 @@
 /*****************************************************************************
  *
  * This MobilityDB code is provided under The PostgreSQL License.
- * Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+ * Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
  * contributors
  *
  * MobilityDB includes portions of PostGIS version 3 source code released
  * under the GNU General Public License (GPLv2 or later).
- * Copyright (c) 2001-2022, PostGIS contributors
+ * Copyright (c) 2001-2023, PostGIS contributors
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written
@@ -23,7 +23,7 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
  * AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
- * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  *****************************************************************************/
 
@@ -81,20 +81,12 @@ CREATE FUNCTION asText(tbox, maxdecimaldigits int4 DEFAULT 15)
   AS 'MODULE_PATHNAME', 'Tbox_as_text'
   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
 
-CREATE FUNCTION asBinary(tbox)
-  RETURNS bytea
-  AS 'MODULE_PATHNAME', 'Tbox_as_wkb'
-  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-CREATE FUNCTION asBinary(tbox, endianenconding text)
+CREATE FUNCTION asBinary(tbox, endianenconding text DEFAULT '')
   RETURNS bytea
   AS 'MODULE_PATHNAME', 'Tbox_as_wkb'
   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
 
-CREATE FUNCTION asHexWKB(tbox)
-  RETURNS text
-  AS 'MODULE_PATHNAME', 'Tbox_as_hexwkb'
-  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-CREATE FUNCTION asHexWKB(tbox, endianenconding text)
+CREATE FUNCTION asHexWKB(tbox, endianenconding text DEFAULT '')
   RETURNS text
   AS 'MODULE_PATHNAME', 'Tbox_as_hexwkb'
   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
@@ -103,46 +95,9 @@ CREATE FUNCTION asHexWKB(tbox, endianenconding text)
  * Constructors
  ******************************************************************************/
 
-CREATE FUNCTION tbox(integer)
-  RETURNS tbox
-  AS 'MODULE_PATHNAME', 'Int_to_tbox'
-  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-CREATE FUNCTION tbox(float)
-  RETURNS tbox
-  AS 'MODULE_PATHNAME', 'Float_to_tbox'
-  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-CREATE FUNCTION tbox(numeric)
-  RETURNS tbox
-  AS 'MODULE_PATHNAME', 'Numeric_to_tbox'
-  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-CREATE FUNCTION tbox(intspan)
-  RETURNS tbox
-  AS 'MODULE_PATHNAME', 'Span_to_tbox'
-  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-CREATE FUNCTION tbox(floatspan)
-  RETURNS tbox
-  AS 'MODULE_PATHNAME', 'Span_to_tbox'
-  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-CREATE FUNCTION tbox(timestamptz)
-  RETURNS tbox
-  AS 'MODULE_PATHNAME', 'Timestamp_to_tbox'
-  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-CREATE FUNCTION tbox(period)
-  RETURNS tbox
-  AS 'MODULE_PATHNAME', 'Period_to_tbox'
-  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-
-CREATE CAST (integer AS tbox) WITH FUNCTION tbox(integer);
-CREATE CAST (float AS tbox) WITH FUNCTION tbox(float);
-CREATE CAST (numeric AS tbox) WITH FUNCTION tbox(numeric);
-CREATE CAST (timestamptz AS tbox) WITH FUNCTION tbox(timestamptz);
-CREATE CAST (period AS tbox) WITH FUNCTION tbox(period);
-CREATE CAST (intspan AS tbox) WITH FUNCTION tbox(intspan);
-CREATE CAST (floatspan AS tbox) WITH FUNCTION tbox(floatspan);
-
 CREATE FUNCTION tbox(integer, timestamptz)
   RETURNS tbox
-  AS 'MODULE_PATHNAME', 'Int_timestamp_to_tbox'
+  AS 'MODULE_PATHNAME', 'Number_timestamp_to_tbox'
   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
 CREATE FUNCTION tbox(intspan, timestamptz)
   RETURNS tbox
@@ -150,25 +105,25 @@ CREATE FUNCTION tbox(intspan, timestamptz)
   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
 CREATE FUNCTION tbox(float, timestamptz)
   RETURNS tbox
-  AS 'MODULE_PATHNAME', 'Float_timestamp_to_tbox'
+  AS 'MODULE_PATHNAME', 'Number_timestamp_to_tbox'
   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
 CREATE FUNCTION tbox(floatspan, timestamptz)
   RETURNS tbox
   AS 'MODULE_PATHNAME', 'Span_timestamp_to_tbox'
   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-CREATE FUNCTION tbox(integer, period)
+CREATE FUNCTION tbox(integer, tstzspan)
   RETURNS tbox
-  AS 'MODULE_PATHNAME', 'Int_period_to_tbox'
+  AS 'MODULE_PATHNAME', 'Number_period_to_tbox'
   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-CREATE FUNCTION tbox(intspan, period)
+CREATE FUNCTION tbox(intspan, tstzspan)
   RETURNS tbox
   AS 'MODULE_PATHNAME', 'Span_period_to_tbox'
   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-CREATE FUNCTION tbox(float, period)
+CREATE FUNCTION tbox(float, tstzspan)
   RETURNS tbox
-  AS 'MODULE_PATHNAME', 'Float_period_to_tbox'
+  AS 'MODULE_PATHNAME', 'Number_period_to_tbox'
   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-CREATE FUNCTION tbox(floatspan, period)
+CREATE FUNCTION tbox(floatspan, tstzspan)
   RETURNS tbox
   AS 'MODULE_PATHNAME', 'Span_period_to_tbox'
   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
@@ -177,17 +132,78 @@ CREATE FUNCTION tbox(floatspan, period)
  * Casting
  *****************************************************************************/
 
-CREATE FUNCTION tbox(timestampset)
+CREATE FUNCTION tbox(integer)
   RETURNS tbox
-  AS 'MODULE_PATHNAME', 'Timestampset_to_tbox'
+  AS 'MODULE_PATHNAME', 'Number_to_tbox'
   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-CREATE FUNCTION tbox(periodset)
+CREATE FUNCTION tbox(float)
   RETURNS tbox
-  AS 'MODULE_PATHNAME', 'Periodset_to_tbox'
+  AS 'MODULE_PATHNAME', 'Number_to_tbox'
+  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+CREATE FUNCTION tbox(numeric)
+  RETURNS tbox
+  AS 'MODULE_PATHNAME', 'Numeric_to_tbox'
+  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+CREATE FUNCTION tbox(timestamptz)
+  RETURNS tbox
+  AS 'MODULE_PATHNAME', 'Timestamp_to_tbox'
   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
 
-CREATE CAST (timestampset AS tbox) WITH FUNCTION tbox(timestampset);
-CREATE CAST (periodset AS tbox) WITH FUNCTION tbox(periodset);
+CREATE FUNCTION tbox(intset)
+  RETURNS tbox
+  AS 'MODULE_PATHNAME', 'Set_to_tbox'
+  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+CREATE FUNCTION tbox(floatset)
+  RETURNS tbox
+  AS 'MODULE_PATHNAME', 'Set_to_tbox'
+  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+CREATE FUNCTION tbox(tstzset)
+  RETURNS tbox
+  AS 'MODULE_PATHNAME', 'Set_to_tbox'
+  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+
+CREATE FUNCTION tbox(intspan)
+  RETURNS tbox
+  AS 'MODULE_PATHNAME', 'Span_to_tbox'
+  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+CREATE FUNCTION tbox(floatspan)
+  RETURNS tbox
+  AS 'MODULE_PATHNAME', 'Span_to_tbox'
+  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+CREATE FUNCTION tbox(tstzspan)
+  RETURNS tbox
+  AS 'MODULE_PATHNAME', 'Span_to_tbox'
+  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+
+CREATE FUNCTION tbox(intspanset)
+  RETURNS tbox
+  AS 'MODULE_PATHNAME', 'Spanset_to_tbox'
+  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+CREATE FUNCTION tbox(floatspanset)
+  RETURNS tbox
+  AS 'MODULE_PATHNAME', 'Spanset_to_tbox'
+  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+CREATE FUNCTION tbox(tstzspanset)
+  RETURNS tbox
+  AS 'MODULE_PATHNAME', 'Spanset_to_tbox'
+  LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
+
+CREATE CAST (integer AS tbox) WITH FUNCTION tbox(integer);
+CREATE CAST (float AS tbox) WITH FUNCTION tbox(float);
+CREATE CAST (numeric AS tbox) WITH FUNCTION tbox(numeric);
+CREATE CAST (timestamptz AS tbox) WITH FUNCTION tbox(timestamptz);
+
+CREATE CAST (intset AS tbox) WITH FUNCTION tbox(intset);
+CREATE CAST (floatset AS tbox) WITH FUNCTION tbox(floatset);
+CREATE CAST (tstzset AS tbox) WITH FUNCTION tbox(tstzset);
+
+CREATE CAST (intspan AS tbox) WITH FUNCTION tbox(intspan);
+CREATE CAST (floatspan AS tbox) WITH FUNCTION tbox(floatspan);
+CREATE CAST (tstzspan AS tbox) WITH FUNCTION tbox(tstzspan);
+
+CREATE CAST (intspanset AS tbox) WITH FUNCTION tbox(intspanset);
+CREATE CAST (floatspanset AS tbox) WITH FUNCTION tbox(floatspanset);
+CREATE CAST (tstzspanset AS tbox) WITH FUNCTION tbox(tstzspanset);
 
 /*****************************************************************************/
 
@@ -195,13 +211,13 @@ CREATE FUNCTION floatspan(tbox)
   RETURNS floatspan
   AS 'MODULE_PATHNAME', 'Tbox_to_floatspan'
   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-CREATE FUNCTION period(tbox)
-  RETURNS period
+CREATE FUNCTION timeSpan(tbox)
+  RETURNS tstzspan
   AS 'MODULE_PATHNAME', 'Tbox_to_period'
   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
 
 CREATE CAST (tbox AS floatspan) WITH FUNCTION floatspan(tbox);
-CREATE CAST (tbox AS period) WITH FUNCTION period(tbox);
+CREATE CAST (tbox AS tstzspan) WITH FUNCTION timeSpan(tbox);
 
 
 /*****************************************************************************
@@ -242,9 +258,9 @@ CREATE FUNCTION expandValue(tbox, float)
   RETURNS tbox
   AS 'MODULE_PATHNAME', 'Tbox_expand_value'
   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-CREATE FUNCTION expandTemporal(tbox, interval)
+CREATE FUNCTION expandTime(tbox, interval)
   RETURNS tbox
-  AS 'MODULE_PATHNAME', 'Tbox_expand_temporal'
+  AS 'MODULE_PATHNAME', 'Tbox_expand_time'
   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
 CREATE FUNCTION round(tbox, integer DEFAULT 0)
   RETURNS tbox
@@ -325,80 +341,80 @@ CREATE OPERATOR -|- (
  * Position operators
  *****************************************************************************/
 
-CREATE FUNCTION temporal_left(tbox, tbox)
+CREATE FUNCTION tbox_left(tbox, tbox)
   RETURNS boolean
   AS 'MODULE_PATHNAME', 'Left_tbox_tbox'
   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-CREATE FUNCTION temporal_overleft(tbox, tbox)
+CREATE FUNCTION tbox_overleft(tbox, tbox)
   RETURNS boolean
   AS 'MODULE_PATHNAME', 'Overleft_tbox_tbox'
   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-CREATE FUNCTION temporal_right(tbox, tbox)
+CREATE FUNCTION tbox_right(tbox, tbox)
   RETURNS boolean
   AS 'MODULE_PATHNAME', 'Right_tbox_tbox'
   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-CREATE FUNCTION temporal_overright(tbox, tbox)
+CREATE FUNCTION tbox_overright(tbox, tbox)
   RETURNS boolean
   AS 'MODULE_PATHNAME', 'Overright_tbox_tbox'
   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-CREATE FUNCTION temporal_before(tbox, tbox)
+CREATE FUNCTION tbox_before(tbox, tbox)
   RETURNS boolean
   AS 'MODULE_PATHNAME', 'Before_tbox_tbox'
   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-CREATE FUNCTION temporal_overbefore(tbox, tbox)
+CREATE FUNCTION tbox_overbefore(tbox, tbox)
   RETURNS boolean
   AS 'MODULE_PATHNAME', 'Overbefore_tbox_tbox'
   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-CREATE FUNCTION temporal_after(tbox, tbox)
+CREATE FUNCTION tbox_after(tbox, tbox)
   RETURNS boolean
   AS 'MODULE_PATHNAME', 'After_tbox_tbox'
   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
-CREATE FUNCTION temporal_overafter(tbox, tbox)
+CREATE FUNCTION tbox_overafter(tbox, tbox)
   RETURNS boolean
   AS 'MODULE_PATHNAME', 'Overafter_tbox_tbox'
   LANGUAGE C IMMUTABLE STRICT PARALLEL SAFE;
 
 CREATE OPERATOR << (
-  PROCEDURE = temporal_left,
+  PROCEDURE = tbox_left,
   LEFTARG = tbox, RIGHTARG = tbox,
   COMMUTATOR = >>,
   RESTRICT = tnumber_sel, JOIN = tnumber_joinsel
 );
 CREATE OPERATOR &< (
-  PROCEDURE = temporal_overleft,
+  PROCEDURE = tbox_overleft,
   LEFTARG = tbox, RIGHTARG = tbox,
   RESTRICT = tnumber_sel, JOIN = tnumber_joinsel
 );
 CREATE OPERATOR >> (
   LEFTARG = tbox, RIGHTARG = tbox,
-  PROCEDURE = temporal_right,
+  PROCEDURE = tbox_right,
   COMMUTATOR = <<,
   RESTRICT = tnumber_sel, JOIN = tnumber_joinsel
 );
 CREATE OPERATOR &> (
-  PROCEDURE = temporal_overright,
+  PROCEDURE = tbox_overright,
   LEFTARG = tbox, RIGHTARG = tbox,
   RESTRICT = tnumber_sel, JOIN = tnumber_joinsel
 );
 CREATE OPERATOR <<# (
-  PROCEDURE = temporal_before,
+  PROCEDURE = tbox_before,
   LEFTARG = tbox, RIGHTARG = tbox,
   COMMUTATOR = #>>,
   RESTRICT = tnumber_sel, JOIN = tnumber_joinsel
 );
 CREATE OPERATOR &<# (
-  PROCEDURE = temporal_overbefore,
+  PROCEDURE = tbox_overbefore,
   LEFTARG = tbox, RIGHTARG = tbox,
   RESTRICT = tnumber_sel, JOIN = tnumber_joinsel
 );
 CREATE OPERATOR #>> (
-  PROCEDURE = temporal_after,
+  PROCEDURE = tbox_after,
   LEFTARG = tbox, RIGHTARG = tbox,
   COMMUTATOR = <<#,
   RESTRICT = tnumber_sel, JOIN = tnumber_joinsel
 );
 CREATE OPERATOR #&> (
-  PROCEDURE = temporal_overafter,
+  PROCEDURE = tbox_overafter,
   LEFTARG = tbox, RIGHTARG = tbox,
   RESTRICT = tnumber_sel, JOIN = tnumber_joinsel
 );
@@ -443,7 +459,9 @@ CREATE FUNCTION tbox_extent_combinefn(tbox, tbox)
 CREATE AGGREGATE extent(tbox) (
   SFUNC = tbox_extent_transfn,
   STYPE = tbox,
+#if POSTGRESQL_VERSION_NUMBER >= 130000
   COMBINEFUNC = tbox_extent_combinefn,
+#endif //POSTGRESQL_VERSION_NUMBER >= 130000
   PARALLEL = safe
 );
 
@@ -517,7 +535,7 @@ CREATE OPERATOR > (
   RESTRICT = areasel, JOIN = areajoinsel
 );
 
-CREATE OPERATOR CLASS tbox_ops
+CREATE OPERATOR CLASS tbox_btree_ops
   DEFAULT FOR TYPE tbox USING btree AS
   OPERATOR  1  < ,
   OPERATOR  2  <= ,

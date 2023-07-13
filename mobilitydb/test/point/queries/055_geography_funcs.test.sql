@@ -1,12 +1,12 @@
 -------------------------------------------------------------------------------
 --
 -- This MobilityDB code is provided under The PostgreSQL License.
--- Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+-- Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
 -- contributors
 --
 -- MobilityDB includes portions of PostGIS version 3 source code released
 -- under the GNU General Public License (GPLv2 or later).
--- Copyright (c) 2001-2022, PostGIS contributors
+-- Copyright (c) 2001-2023, PostGIS contributors
 --
 -- Permission to use, copy, modify, and distribute this software and its
 -- documentation for any purpose, without fee, and without a written
@@ -23,7 +23,7 @@
 -- INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
 -- AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
 -- AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
--- PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+-- PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
 --
 -------------------------------------------------------------------------------
 
@@ -35,6 +35,10 @@ SELECT ST_AsText(round(ST_LineInterpolatePoints(geography 'Linestring(4.35 50.85
 -- PostGIS 3.3 changed the output of MULTIPOINT
 -- SELECT ST_AsText(round(ST_LineInterpolatePoints(geography 'Linestring(4.35 50.85, 37.617222 55.755833)', 0.1, true), 6));
 SELECT array_agg(ST_AsText((dp).geom)) FROM (SELECT ST_DumpPoints(round(ST_LineInterpolatePoints(geography 'Linestring(4.35 50.85, 37.617222 55.755833)', 0.1, true), 6)::geometry)) AS t(dp);
+
+SELECT ST_AsText(ST_LineSubstring(geography 'Linestring(1 1,2 2)', 0.1, 0.2));
+SELECT ST_AsText(ST_LineSubstring(geography 'Linestring(1 1,1.000000001 1.000000001)', 0.1, 0.10000001));
+SELECT ST_LineLocatePoint(geography 'Linestring(1 1,2 2)', 'Point(1 1)', false);
 
 -- Empty geography -> NULL
 SELECT ST_LineInterpolatePoint(geography 'Linestring empty', 0.1);
@@ -50,6 +54,10 @@ SELECT ST_LineInterpolatePoints(geography 'Point(4.35 50.85)', 0.5, true);
 SELECT ST_LineInterpolatePoints(geography 'Linestring(4.35 50.85, 37.617222 55.755833)', 2, true);
 SELECT ST_LineSubstring(geography 'Linestring(4.35 50.85, 37.617222 55.755833)', 2, 0.5);
 SELECT ST_LineSubstring(geography 'Linestring(4.35 50.85, 37.617222 55.755833)', 0.5, 2);
+SELECT ST_LineSubstring(geography 'Linestring(1 1,2 2)', 0.2, 0.1);
+SELECT ST_LineSubstring(geography 'Multipoint(1 1,2 2)', 0.1, 0.2);
+SELECT ST_LineLocatePoint(geography 'Multipoint(1 1,2 2)', 'Point(1 1)', false);
+SELECT ST_LineLocatePoint(geography 'Linestring(1 1,2 2)', 'Multipoint(1 1,2 2)', false);
 
 -------------------------------------------------------------------------------
 
@@ -63,7 +71,7 @@ SELECT round(MAX(ST_Length(ST_LineSubstring(g, 0.5, 0.7)))::numeric, 6) FROM tbl
 
 SELECT round(MAX(ST_Distance(ST_ClosestPoint(t1.g, t2.g), 'Point(50 50 50)'))::numeric, 6) FROM tbl_geog_linestring3D t1, tbl_geog_linestring3D t2;
 
-SELECT round(MAX(ST_Length(ST_ShortestLine(t1.g, t2.g)))::numeric, 6) FROM tbl_geog_linestring3D t1, tbl_geog_linestring3D t2;
+SELECT round(MAX(ST_Length(ST_ShortestLine(t1.g, t2.g, false)))::numeric, 6) FROM tbl_geog_linestring3D t1, tbl_geog_linestring3D t2;
 
 -------------------------------------------------------------------------------
 

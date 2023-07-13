@@ -1,12 +1,12 @@
 /*****************************************************************************
  *
  * This MobilityDB code is provided under The PostgreSQL License.
- * Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+ * Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
  * contributors
  *
  * MobilityDB includes portions of PostGIS version 3 source code released
  * under the GNU General Public License (GPLv2 or later).
- * Copyright (c) 2001-2022, PostGIS contributors
+ * Copyright (c) 2001-2023, PostGIS contributors
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written
@@ -23,22 +23,26 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
  * AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
- * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  *****************************************************************************/
 
 /**
+ * @file
  * @brief Temporal text functions: `textcat`, `lower`, `upper`.
  */
 
 #include "general/ttext_textfuncs.h"
 
 /* PostgreSQL */
+#if POSTGRESQL_VERSION_NUMBER >= 160000
+  #include "varatt.h"
+#endif
 #include "utils/formatting.h"
-/* MobilityDB */
-#include "general/temporal.h"
-#include "general/temporal_util.h"
+/* MEOS */
 #include "general/lifting.h"
+#include "general/temporal.h"
+#include "general/type_util.h"
 
 /*****************************************************************************
  * Textual functions on datums
@@ -101,7 +105,7 @@ pnstrdup(const char *in, Size size)
 
   if (!in)
   {
-    fprintf(stderr, _("cannot duplicate null pointer (internal error)\n"));
+    fprintf(stderr, "cannot duplicate null pointer (internal error)\n");
     exit(EXIT_FAILURE);
   }
 
@@ -109,7 +113,7 @@ pnstrdup(const char *in, Size size)
   tmp = malloc(len + 1);
   if (tmp == NULL)
   {
-    fprintf(stderr, _("out of memory\n"));
+    fprintf(stderr, "out of memory\n");
     exit(EXIT_FAILURE);
   }
 
@@ -196,7 +200,7 @@ pg_lower(text *txt)
 Datum
 datum_lower(Datum value)
 {
-  return PointerGetDatum(pg_lower(DatumGetTextP(value)));
+  return pg_lower(DatumGetTextP(value));
 }
 
 /**
@@ -228,7 +232,7 @@ pg_upper(text *txt)
 Datum
 datum_upper(Datum value)
 {
-  return PointerGetDatum(pg_upper(DatumGetTextP(value)));
+  return pg_upper(DatumGetTextP(value));
 }
 
 /*****************************************************************************
@@ -236,7 +240,7 @@ datum_upper(Datum value)
  *****************************************************************************/
 
 /**
- * Apply the function to transform the temporal text value
+ * @brief Apply the function to transform the temporal text value
  */
 Temporal *
 textfunc_ttext(const Temporal *temp, Datum (*func)(Datum value))
@@ -253,7 +257,7 @@ textfunc_ttext(const Temporal *temp, Datum (*func)(Datum value))
 }
 
 /**
- * Apply the function to the temporal text value and the base text value
+ * @brief Apply the function to the temporal text value and the base text value
  */
 Temporal *
 textfunc_ttext_text(const Temporal *temp, Datum value, datum_func2 func,
@@ -273,7 +277,7 @@ textfunc_ttext_text(const Temporal *temp, Datum value, datum_func2 func,
 }
 
 /**
- * Apply the function to the temporal text value and the base text value.
+ * @brief Apply the function to the temporal text value and the base text value.
  */
 Temporal *
 textfunc_ttext_ttext(const Temporal *temp1, const Temporal *temp2,

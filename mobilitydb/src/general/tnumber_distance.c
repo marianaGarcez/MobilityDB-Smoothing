@@ -1,12 +1,12 @@
 /***********************************************************************
  *
  * This MobilityDB code is provided under The PostgreSQL License.
- * Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+ * Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
  * contributors
  *
  * MobilityDB includes portions of PostGIS version 3 source code released
  * under the GNU General Public License (GPLv2 or later).
- * Copyright (c) 2001-2022, PostGIS contributors
+ * Copyright (c) 2001-2023, PostGIS contributors
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written
@@ -23,11 +23,12 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
  * AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
- * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  *****************************************************************************/
 
 /**
+ * @file
  * @brief Distance functions for temporal numbers.
  */
 
@@ -36,20 +37,23 @@
 /* C */
 #include <float.h>
 #include <math.h>
+#include <assert.h>
 /* PostgreSQL */
 #include <postgres.h>
+#include <fmgr.h>
 /* MEOS */
 #include <meos.h>
 #include <meos_internal.h>
 #include "general/temporaltypes.h"
 #include "general/lifting.h"
 /* MobilityDB */
-#include "pg_general/temporal_catalog.h"
+#include "pg_general/meos_catalog.h"
 
 /*****************************************************************************
  * Temporal distance
  *****************************************************************************/
 
+PGDLLEXPORT Datum Distance_number_tnumber(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Distance_number_tnumber);
 /**
  * @ingroup mobilitydb_temporal_dist
@@ -57,7 +61,7 @@ PG_FUNCTION_INFO_V1(Distance_number_tnumber);
  * @sqlfunc tnumber_distance()
  * @sqlop @p <->
  */
-PGDLLEXPORT Datum
+Datum
 Distance_number_tnumber(PG_FUNCTION_ARGS)
 {
   Datum value = PG_GETARG_DATUM(0);
@@ -70,6 +74,7 @@ Distance_number_tnumber(PG_FUNCTION_ARGS)
   PG_RETURN_POINTER(result);
 }
 
+PGDLLEXPORT Datum Distance_tnumber_number(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Distance_tnumber_number);
 /**
  * @ingroup mobilitydb_temporal_dist
@@ -77,7 +82,7 @@ PG_FUNCTION_INFO_V1(Distance_tnumber_number);
  * @sqlfunc tnumber_distance()
  * @sqlop @p <->
  */
-PGDLLEXPORT Datum
+Datum
 Distance_tnumber_number(PG_FUNCTION_ARGS)
 {
   Temporal *temp = PG_GETARG_TEMPORAL_P(0);
@@ -90,6 +95,7 @@ Distance_tnumber_number(PG_FUNCTION_ARGS)
   PG_RETURN_POINTER(result);
 }
 
+PGDLLEXPORT Datum Distance_tnumber_tnumber(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(Distance_tnumber_tnumber);
 /**
  * @ingroup mobilitydb_temporal_dist
@@ -97,7 +103,7 @@ PG_FUNCTION_INFO_V1(Distance_tnumber_tnumber);
  * @sqlfunc tnumber_distance()
  * @sqlop @p <->
  */
-PGDLLEXPORT Datum
+Datum
 Distance_tnumber_tnumber(PG_FUNCTION_ARGS)
 {
   Temporal *temp1 = PG_GETARG_TEMPORAL_P(0);
@@ -107,7 +113,7 @@ Distance_tnumber_tnumber(PG_FUNCTION_ARGS)
     oid_type(temptypid));
   PG_FREE_IF_COPY(temp1, 0);
   PG_FREE_IF_COPY(temp2, 1);
-  if (result == NULL)
+  if (! result)
     PG_RETURN_NULL();
   PG_RETURN_POINTER(result);
 }
@@ -116,13 +122,14 @@ Distance_tnumber_tnumber(PG_FUNCTION_ARGS)
  * Nearest approach distance
  *****************************************************************************/
 
+PGDLLEXPORT Datum NAD_number_tnumber(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(NAD_number_tnumber);
 /**
  * @ingroup mobilitydb_temporal_dist
  * @brief Return the temporal distance between a number and a temporal number
  * @sqlfunc nearestApproachDistance()
  */
-PGDLLEXPORT Datum
+Datum
 NAD_number_tnumber(PG_FUNCTION_ARGS)
 {
   Datum value = PG_GETARG_DATUM(0);
@@ -134,13 +141,14 @@ NAD_number_tnumber(PG_FUNCTION_ARGS)
   PG_RETURN_FLOAT8(result);
 }
 
+PGDLLEXPORT Datum NAD_tnumber_number(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(NAD_tnumber_number);
 /**
  * @ingroup mobilitydb_temporal_dist
  * @brief Return the temporal distance between a temporal number and a number
  * @sqlfunc nearestApproachDistance()
  */
-PGDLLEXPORT Datum
+Datum
 NAD_tnumber_number(PG_FUNCTION_ARGS)
 {
   Temporal *temp = PG_GETARG_TEMPORAL_P(0);
@@ -152,23 +160,25 @@ NAD_tnumber_number(PG_FUNCTION_ARGS)
   PG_RETURN_FLOAT8(result);
 }
 
+PGDLLEXPORT Datum NAD_tbox_tbox(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(NAD_tbox_tbox);
 /**
  * @ingroup mobilitydb_temporal_dist
  * @brief Return the nearest approach distance between the temporal boxes
  * @sqlfunc nearestApproachDistance()
  */
-PGDLLEXPORT Datum
+Datum
 NAD_tbox_tbox(PG_FUNCTION_ARGS)
 {
-  TBOX *box1 = PG_GETARG_TBOX_P(0);
-  TBOX *box2 = PG_GETARG_TBOX_P(1);
+  TBox *box1 = PG_GETARG_TBOX_P(0);
+  TBox *box2 = PG_GETARG_TBOX_P(1);
   double result = nad_tbox_tbox(box1, box2);
   if (result == DBL_MAX)
     PG_RETURN_NULL();
   PG_RETURN_FLOAT8(result);
 }
 
+PGDLLEXPORT Datum NAD_tbox_tnumber(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(NAD_tbox_tnumber);
 /**
  * @ingroup mobilitydb_temporal_dist
@@ -176,10 +186,10 @@ PG_FUNCTION_INFO_V1(NAD_tbox_tnumber);
  * temporal number
  * @sqlfunc nearestApproachDistance()
  */
-PGDLLEXPORT Datum
+Datum
 NAD_tbox_tnumber(PG_FUNCTION_ARGS)
 {
-  TBOX *box = PG_GETARG_TBOX_P(0);
+  TBox *box = PG_GETARG_TBOX_P(0);
   Temporal *temp = PG_GETARG_TEMPORAL_P(1);
   double result = nad_tnumber_tbox(temp, box);
   PG_FREE_IF_COPY(temp, 1);
@@ -188,6 +198,7 @@ NAD_tbox_tnumber(PG_FUNCTION_ARGS)
   PG_RETURN_FLOAT8(result);
 }
 
+PGDLLEXPORT Datum NAD_tnumber_tbox(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(NAD_tnumber_tbox);
 /**
  * @ingroup mobilitydb_temporal_dist
@@ -195,11 +206,11 @@ PG_FUNCTION_INFO_V1(NAD_tnumber_tbox);
  * temporal box
  * @sqlfunc nearestApproachDistance()
  */
-PGDLLEXPORT Datum
+Datum
 NAD_tnumber_tbox(PG_FUNCTION_ARGS)
 {
   Temporal *temp = PG_GETARG_TEMPORAL_P(0);
-  TBOX *box = PG_GETARG_TBOX_P(1);
+  TBox *box = PG_GETARG_TBOX_P(1);
   double result = nad_tnumber_tbox(temp, box);
   PG_FREE_IF_COPY(temp, 0);
   if (result == DBL_MAX)
@@ -207,21 +218,22 @@ NAD_tnumber_tbox(PG_FUNCTION_ARGS)
   PG_RETURN_FLOAT8(result);
 }
 
+PGDLLEXPORT Datum NAD_tnumber_tnumber(PG_FUNCTION_ARGS);
 PG_FUNCTION_INFO_V1(NAD_tnumber_tnumber);
 /**
  * @ingroup mobilitydb_temporal_dist
  * @brief Return the nearest approach distance between the temporal numbers
  * @sqlfunc nearestApproachDistance()
  */
-PGDLLEXPORT Datum
+Datum
 NAD_tnumber_tnumber(PG_FUNCTION_ARGS)
 {
   Temporal *temp1 = PG_GETARG_TEMPORAL_P(0);
   Temporal *temp2 = PG_GETARG_TEMPORAL_P(1);
-  ensure_tnumber_type(temp1->temptype);
-  ensure_tnumber_type(temp2->temptype);
+  assert(tnumber_type(temp1->temptype));
+  assert(tnumber_type(temp2->temptype));
   /* Result of the distance function is a tint iff both arguments are tint */
-  mobdbType restype = (temp1->temptype == T_TINT && temp2->temptype == T_TINT) ?
+  meosType restype = (temp1->temptype == T_TINT && temp2->temptype == T_TINT) ?
     T_TINT : T_TFLOAT;
   Temporal *dist = distance_tnumber_tnumber1(temp1, temp2, restype);
   if (dist == NULL)

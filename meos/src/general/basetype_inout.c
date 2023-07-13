@@ -1,12 +1,12 @@
 /*****************************************************************************
  *
  * This MobilityDB code is provided under The PostgreSQL License.
- * Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+ * Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
  * contributors
  *
  * MobilityDB includes portions of PostGIS version 3 source code released
  * under the GNU General Public License (GPLv2 or later).
- * Copyright (c) 2001-2022, PostGIS contributors
+ * Copyright (c) 2001-2023, PostGIS contributors
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written
@@ -28,6 +28,7 @@
  *****************************************************************************/
 
 /**
+ * @file
  * @brief Functions for string input/output base types taken from PostgreSQL
  * version 14.2 source code.
  */
@@ -35,8 +36,10 @@
 /* PostgreSQL */
 #include <postgres.h>
 #include <utils/float.h>
-/* PostgreSQL */
+/* PostGIS */
 #include <liblwgeom_internal.h> /* for OUT_DOUBLE_BUFFER_SIZE */
+/* MEOS */
+#include <meos.h>
 
 #if POSTGRESQL_VERSION_NUMBER >= 150000 || MEOS
   extern int64 pg_strtoint64(const char *s);

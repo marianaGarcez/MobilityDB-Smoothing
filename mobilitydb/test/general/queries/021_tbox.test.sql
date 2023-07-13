@@ -1,7 +1,7 @@
 -------------------------------------------------------------------------------
 --
 -- This MobilityDB code is provided under The PostgreSQL License.
--- Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+-- Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
 -- contributors
 --
 -- MobilityDB includes portions of PostGIS version 3 source code released
@@ -23,7 +23,7 @@
 -- INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
 -- AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
 -- AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
--- PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+-- PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
 --
 -------------------------------------------------------------------------------
 
@@ -34,6 +34,7 @@
 SELECT tbox 'TBOX XT([1.0, 1.0],[2000-01-01,2000-01-02])'; -- Both X and T dimensions
 SELECT tbox 'TBOX X([1.0, 1.0])'; -- Only X dimension
 SELECT tbox 'TBOX T([2000-01-01,2000-01-02])'; -- Only T dimension
+SELECT tbox 'TBOX XT([1,2][2000-01-01,2000-01-02])'; -- Optional comma
 
 /* Errors */
 SELECT tbox 'XXX(1, 2000-01-02)';
@@ -47,6 +48,7 @@ SELECT tbox 'TBOX X((1, AA))';
 SELECT tbox 'TBOX X((1, 2000-01-01))';
 SELECT tbox 'TBOX X((1, 2), 2, 2))';
 SELECT tbox 'TBOX X((1, 2),(AA, 2))';
+SELECT tbox 'TBOX XT([1,2][2000-01-01,2000-01-02])';
 SELECT tbox 'TBOX X((1, 2),(2000-01-01, AA))';
 SELECT tbox 'TBOX X((1, 2),(2000-01-01, 2000-01-02)';
 SELECT tbox 'TBOX X((2,2000-01-02),(1,2000-01-01))XXXX';
@@ -72,29 +74,37 @@ SELECT COUNT(*) FROM tbl_tbox WHERE tboxFromHexWKB(asHexWKB(b)) <> b;
 -- Constructors
 -------------------------------------------------------------------------------
 
-SELECT tbox(floatspan '[1,2]', period '[2000-01-01,2000-01-02]');
+SELECT tbox(floatspan '[1,2]', tstzspan '[2000-01-01,2000-01-02]');
 SELECT tbox(floatspan '[1,2]');
-SELECT tbox(period '[2000-01-01,2000-01-02]');
+SELECT tbox(tstzspan '[2000-01-01,2000-01-02]');
 
 -------------------------------------------------------------------------------
 -- Casting
 -------------------------------------------------------------------------------
 
 SELECT tbox 'TBOX XT([1.0,2.0],[2000-01-01,2000-01-02])'::floatspan;
-SELECT tbox 'TBOX XT([1.0,2.0],[2000-01-01,2000-01-02])'::period;
+SELECT tbox 'TBOX XT([1.0,2.0],[2000-01-01,2000-01-02])'::tstzspan;
 SELECT tbox 'TBOX X([1.0, 2.0])'::floatspan;
-SELECT tbox 'TBOX X([1.0, 2.0])'::period;
+SELECT tbox 'TBOX X([1.0, 2.0])'::tstzspan;
 SELECT tbox 'TBOX T((2000-01-01,2000-01-02))'::floatspan;
-SELECT tbox 'TBOX T((2000-01-01,2000-01-02))'::period;
+SELECT tbox 'TBOX T((2000-01-01,2000-01-02))'::tstzspan;
 
 SELECT 1::tbox;
 SELECT 1.5::tbox;
+SELECT intset '{1,2}'::tbox;
+SELECT floatset '{1,2}'::tbox;
+SELECT tstzset '{2000-01-01,2000-01-02}'::tbox;
+SELECT intspan '[1,2]'::tbox;
 SELECT floatspan '[1,2]'::tbox;
+SELECT tstzspan '[2000-01-01,2000-01-02]'::tbox;
+SELECT intspanset '{[1,2]}'::tbox;
+SELECT floatspanset '{[1,2]}'::tbox;
+SELECT tstzspanset '{[2000-01-01,2000-01-02]}'::tbox;
 
 -------------------------------------------------------------------------------
 
 SELECT ROUND(MAX(upper(b::floatspan) - lower(b::floatspan))::numeric, 6) FROM tbl_tbox;
-SELECT MAX(duration(b::period)) FROM tbl_tbox;
+SELECT MAX(duration(b::tstzspan)) FROM tbl_tbox;
 
 -------------------------------------------------------------------------------
 -- Accessor functions
@@ -135,11 +145,11 @@ SELECT MAX(tmax(b)) FROM tbl_tbox;
 -------------------------------------------------------------------------------
 
 SELECT expandValue(tbox 'TBOX XT([1.0,2.0],[2000-01-01,2000-01-02])', 2);
-SELECT expandTemporal(tbox 'TBOX XT([1.0,2.0],[2000-01-01,2000-01-02])', interval '1 day');
+SELECT expandTime(tbox 'TBOX XT([1.0,2.0],[2000-01-01,2000-01-02])', interval '1 day');
 SELECT round(tbox 'TBOX XT([1.123456789,2.123456789],[2000-01-01,2000-01-02])', 2);
 /* Errors */
 SELECT expandValue(tbox 'TBOX T([2000-01-01,2000-01-02])', 2);
-SELECT expandTemporal(tbox 'TBOX X([1,2])', interval '1 day');
+SELECT expandTime(tbox 'TBOX X([1,2])', interval '1 day');
 SELECT round(tbox 'TBOX T([2000-01-01,2000-01-02])', 2);
 
 -------------------------------------------------------------------------------
@@ -152,7 +162,7 @@ SELECT tbox 'TBOX XT([1.0, 2.0],[2000-01-02, 2000-02-01])' <@ tbox 'TBOX XT([1.0
 SELECT tbox 'TBOX XT([1.0, 2.0],[2000-01-02, 2000-02-01])' -|- tbox 'TBOX XT([1.0,2.0],[2000-01-01,2000-01-02])';
 SELECT tbox 'TBOX XT([1.0, 2.0],[2000-01-02, 2000-02-01])' ~= tbox 'TBOX XT([1.0,2.0],[2000-01-01,2000-01-02])';
 
-SELECT period '[2000-01-01,2000-01-02]'::tbox -|- period '[2000-01-02, 2000-01-03]'::tbox;
+SELECT tstzspan '[2000-01-01,2000-01-02]'::tbox -|- tstzspan '[2000-01-02, 2000-01-03]'::tbox;
 
 /* Errors */
 SELECT tbox 'TBOX X([1,2])' && tbox 'TBOX T([2000-01-01,2000-01-02])';

@@ -1,12 +1,12 @@
 /*****************************************************************************
  *
  * This MobilityDB code is provided under The PostgreSQL License.
- * Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+ * Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
  * contributors
  *
  * MobilityDB includes portions of PostGIS version 3 source code released
  * under the GNU General Public License (GPLv2 or later).
- * Copyright (c) 2001-2022, PostGIS contributors
+ * Copyright (c) 2001-2023, PostGIS contributors
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written
@@ -23,11 +23,12 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
  * AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
- * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  *****************************************************************************/
 
 /**
+ * @file
  * @brief Spatial functions for PostGIS geography.
  *
  * These functions are supposed to be included in a forthcoming version of
@@ -47,10 +48,13 @@
   #include <lwgeom_pg.h>
 #endif /* ! MEOS */
 #include <lwgeodetic_tree.h>
-/* MobilityDB */
+/* MEOS */
 #include <meos.h>
 #include "point/tpoint_spatialfuncs.h"
 
+/**
+ * @brief Compute the shortest line between two geographies
+ */
 static LWGEOM *
 geography_tree_shortestline(const GSERIALIZED* g1, const GSERIALIZED* g2,
   double threshold, const SPHEROID *spheroid)
@@ -99,9 +103,9 @@ geography_tree_shortestline(const GSERIALIZED* g1, const GSERIALIZED* g2,
 }
 
 /**
-Returns the point in first input geography that is closest to the second
-input geography in 2d (internal function)
-*/
+ * @brief Return the point in first input geography that is closest to the
+ * second input geography in 2D
+ */
 GSERIALIZED *
 geography_shortestline_internal(const GSERIALIZED *g1, const GSERIALIZED *g2,
   bool use_spheroid)
@@ -124,9 +128,6 @@ geography_shortestline_internal(const GSERIALIZED *g1, const GSERIALIZED *g2,
     s.a = s.b = s.radius;
 
   LWGEOM *line = geography_tree_shortestline(g1, g2, FP_TOLERANCE, &s);
-
-  if (lwgeom_is_empty(line))
-    return NULL;
 
 #if ! MEOS
   GSERIALIZED *result = geography_serialize(line);

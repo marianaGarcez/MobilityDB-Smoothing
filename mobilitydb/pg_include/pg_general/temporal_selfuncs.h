@@ -1,12 +1,12 @@
 /*****************************************************************************
  *
  * This MobilityDB code is provided under The PostgreSQL License.
- * Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+ * Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
  * contributors
  *
  * MobilityDB includes portions of PostGIS version 3 source code released
  * under the GNU General Public License (GPLv2 or later).
- * Copyright (c) 2001-2022, PostGIS contributors
+ * Copyright (c) 2001-2023, PostGIS contributors
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written
@@ -23,7 +23,7 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
  * AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
- * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  *****************************************************************************/
 
@@ -42,11 +42,11 @@
 #include <utils/selfuncs.h>
 #include <utils/typcache.h>
 /* MEOS */
-#include "meos.h"
+#include <meos.h>
+#include "general/meos_catalog.h"
 #include "general/temporal.h"
-#include "general/temporal_catalog.h"
 /* MobilityDB */
-#include "pg_general/temporal_catalog.h"
+#include "pg_general/meos_catalog.h"
 
 #define BTREE_AM_OID   403
 
@@ -61,11 +61,9 @@
  *****************************************************************************/
 
 extern Selectivity scalarineqsel(PlannerInfo *root, Oid operid, bool isgt,
-  bool iseq, VariableStatData *vardata, Datum constval,
-  Oid consttypid);
-extern Selectivity temporal_sel_period(VariableStatData *vardata,
-  Period *period, CachedOp cachedOp);
-
+  bool iseq, VariableStatData *vardata, Datum constval, Oid consttypid);
+extern Selectivity temporal_sel_period(VariableStatData *vardata, Span *period,
+  meosOper oper);
 
 /*****************************************************************************
  * Some other helper functions.

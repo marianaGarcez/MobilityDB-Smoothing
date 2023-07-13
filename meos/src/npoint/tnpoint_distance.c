@@ -1,12 +1,12 @@
 /*****************************************************************************
  *
  * This MobilityDB code is provided under The PostgreSQL License.
- * Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+ * Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
  * contributors
  *
  * MobilityDB includes portions of PostGIS version 3 source code released
  * under the GNU General Public License (GPLv2 or later).
- * Copyright (c) 2001-2022, PostGIS contributors
+ * Copyright (c) 2001-2023, PostGIS contributors
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written
@@ -23,11 +23,12 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
  * AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
- * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  *****************************************************************************/
 
 /**
+ * @file
  * @brief Temporal distance for temporal network points.
  */
 
@@ -35,11 +36,11 @@
 
 /* C */
 #include <assert.h>
-/* MobilityDB */
+/* MEOS */
 #include <meos.h>
 #include <meos_internal.h>
 #include "general/lifting.h"
-#include "general/temporal_util.h"
+#include "general/type_util.h"
 #include "point/pgis_call.h"
 #include "point/tpoint_spatialfuncs.h"
 #include "point/tpoint_distance.h"
@@ -47,6 +48,21 @@
 #include "npoint/tnpoint_static.h"
 #include "npoint/tnpoint_spatialfuncs.h"
 #include "npoint/tnpoint_tempspatialrels.h"
+
+/*****************************************************************************
+ * Distance function
+ *****************************************************************************/
+
+/**
+ * @brief Return the distance between the two network points
+ */
+Datum
+npoint_distance(Datum np1, Datum np2)
+{
+  Datum geom1 = PointerGetDatum(npoint_geom(DatumGetNpointP(np1)));
+  Datum geom2 = PointerGetDatum(npoint_geom(DatumGetNpointP(np2)));
+  return pt_distance2d(geom1, geom2);
+}
 
 /*****************************************************************************
  * Temporal distance
@@ -78,7 +94,7 @@ distance_tnpoint_npoint(const Temporal *temp, const Npoint *np)
   GSERIALIZED *geom = npoint_geom(np);
   Temporal *tempgeom = tnpoint_tgeompoint(temp);
   Temporal *result = distance_tpoint_geo(tempgeom, geom);
-  pfree(DatumGetPointer(geom));
+  pfree(geom);
   return result;
 }
 
@@ -120,8 +136,7 @@ nai_tnpoint_geo(const Temporal *temp, const GSERIALIZED *geo)
   /* We do not call the function tgeompointinst_tnpointinst to avoid
    * roundoff errors. The closest point may be at an exclusive bound. */
   Datum value;
-  bool found = temporal_value_at_timestamp(temp, resultgeom->t, false, &value);
-  assert(found);
+  temporal_value_at_timestamp(temp, resultgeom->t, false, &value);
   TInstant *result = tinstant_make(value, temp->temptype, resultgeom->t);
   pfree(tempgeom); pfree(resultgeom); pfree(DatumGetPointer(value));
   return result;
@@ -140,8 +155,7 @@ nai_tnpoint_npoint(const Temporal *temp, const Npoint *np)
   /* We do not call the function tgeompointinst_tnpointinst to avoid
    * roundoff errors. The closest point may be at an exclusive bound. */
   Datum value;
-  bool found = temporal_value_at_timestamp(temp, resultgeom->t, false, &value);
-  assert(found);
+  temporal_value_at_timestamp(temp, resultgeom->t, false, &value);
   TInstant *result = tinstant_make(value, temp->temptype, resultgeom->t);
   pfree(tempgeom); pfree(resultgeom); pfree(DatumGetPointer(value));
   pfree(geom);
@@ -161,8 +175,7 @@ nai_tnpoint_tnpoint(const Temporal *temp1, const Temporal *temp2)
     const TInstant *min = temporal_min_instant((const Temporal *) dist);
     /* The closest point may be at an exclusive bound. */
     Datum value;
-    bool found = temporal_value_at_timestamp(temp1, min->t, false, &value);
-    assert(found);
+    temporal_value_at_timestamp(temp1, min->t, false, &value);
     result = tinstant_make(value, temp1->temptype, min->t);
     pfree(dist); pfree(DatumGetPointer(value));
   }

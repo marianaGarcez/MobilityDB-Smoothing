@@ -1,12 +1,12 @@
 /*****************************************************************************
  *
  * This MobilityDB code is provided under The PostgreSQL License.
- * Copyright (c) 2016-2022, Université libre de Bruxelles and MobilityDB
+ * Copyright (c) 2016-2023, Université libre de Bruxelles and MobilityDB
  * contributors
  *
  * MobilityDB includes portions of PostGIS version 3 source code released
  * under the GNU General Public License (GPLv2 or later).
- * Copyright (c) 2001-2022, PostGIS contributors
+ * Copyright (c) 2001-2023, PostGIS contributors
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose, without fee, and without a written
@@ -23,7 +23,7 @@
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
  * AND FITNESS FOR A PARTICULAR PURPOSE. THE SOFTWARE PROVIDED HEREUNDER IS ON
  * AN "AS IS" BASIS, AND UNIVERSITE LIBRE DE BRUXELLES HAS NO OBLIGATIONS TO
- * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS. 
+ * PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
  *
  *****************************************************************************/
 
@@ -35,24 +35,28 @@
 #ifndef __DOUBLEN_H__
 #define __DOUBLEN_H__
 
-/* MobilityDB */
+/* MEOS */
 #include "general/temporal.h"
 
 /*****************************************************************************/
 
+extern char *double2_out(const double2 *d, int maxdd);
 extern void double2_set(double a, double b, double2 *result);
 extern double2 *double2_add(const double2 *d1, const double2 *d2);
 extern bool double2_eq(const double2 *d1, const double2 *d2);
-/* extern int double2_cmp(const double2 *d1, const double2 *d2); */
+extern int double2_cmp(const double2 *d1, const double2 *d2);
 
+extern char *double3_out(const double3 *d, int maxdd);
 extern void double3_set(double a, double b, double c, double3 *result);
 extern double3 *double3_add(const double3 *d1, const double3 *d2);
 extern bool double3_eq(const double3 *d1, const double3 *d2);
-/* extern int double3_cmp(const double3 *d1, const double3 *d2); */
+extern int double3_cmp(const double3 *d1, const double3 *d2);
 
+extern char *double4_out(const double4 *d, int maxdd);
 extern void double4_set(double a, double b, double c, double d, double4 *result);
 extern double4 *double4_add(const double4 *d1, const double4 *d2);
 extern bool double4_eq(const double4 *d1, const double4 *d2);
+extern int double4_cmp(const double4 *d1, const double4 *d2);
 
 /*****************************************************************************/
 
