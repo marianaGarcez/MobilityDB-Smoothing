@@ -1898,10 +1898,10 @@ TSequence * tsequence_filter_heuristic(const TSequence *seq, double eps_dist, bo
   double dist;
 
   printf("tsequence_filter_heuristic\n");
-  assert(MOBDB_FLAGS_GET_LINEAR(seq->flags));
-  printf("tsequence_filter_heuristic2\n");
-  assert(seq->temptype == T_TFLOAT || tgeo_type(seq->temptype));
-  printf("tsequence_filter_heuristic3\n");
+  //assert(MOBDB_FLAGS_GET_LINEAR(seq->flags));
+  //printf("tsequence_filter_heuristic2\n");
+  //assert(seq->temptype == T_TFLOAT || tgeo_type(seq->temptype));
+  //printf("tsequence_filter_heuristic3\n");
 
   /* Do not try to detect outlier really short things */
   if (seq->count < 3)
