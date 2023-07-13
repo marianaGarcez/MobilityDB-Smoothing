@@ -1905,7 +1905,7 @@ TSequence * tsequence_filter_heuristic(const TSequence *seq, double eps_dist, bo
     printf("sequence too small\n");
     return tsequence_copy(seq);
   }
-  printf("tsequence_filter_heuristic\n");
+  printf("tsequence_filter_heuristic %s \n",seq->temptype);
 
 
   /* Only heap allocate book-keeping arrays if necessary */
