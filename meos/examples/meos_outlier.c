@@ -158,7 +158,8 @@ int main(void){
   printf("%d trips read.\n", numships);
 
   /* Construct the trips */
-  for (i = 0; i < numships; i++){
+  for (i = 0; i < numships; i++)
+  {
     trips[i] = tsequence_make((const TInstant **) trip_instants[i].instants,
       numinstants[i], numinstants[i], true, true, LINEAR, true);
 
@@ -169,15 +170,48 @@ int main(void){
 
   printf("get first trip\n");
   /* Detect outliers */
-  Temporal *trip = (Temporal *)trips[0];
+  Temporal *tripInst;
   printf("get speed trip\n");
-  Temporal *speed = tpoint_speed(trip);
+  Temporal *speed;
   printf("get outlier trip\n");
+  Temporal *output = null;
+  TSequence *tripOut[MAX_TRIPS];
+  int numinstantsOut[MAX_TRIPS] = {0};
+
+  float speedMin = 0.0;
+  float speedMax = 1000.0;
+
+  for (i = 0; i < numships; i++){
+    tripInst = (Temporal *)trips[i];
+    speed = tpoint_speed(tripInst);
+
+    for (j = 0; j < numinstants[i]; j++)
+    {
+      Datum value = tinstant_value(speed[j]);
+      printf("MMSI: %ld, Instant: %d, speed: %s\n", trip_instants[i].MMSI, j, value);
+
+      if (value < speedMin || value > speedMax)
+        printf("Instant %d is an outlier\n", j);
+      else
+      {
+        printf("Instant %d is not an outlier\n", j);
+        /*Add instant to output*/
+        output[numinstantsOut[i]++] = tripInst[j];
+      }
+    }
+    tripOut[i] = tsequence_make((const TInstant **) tripOut,
+      numinstantsOut[i], numinstantsOut[i], true, true, LINEAR, true);
+  }
+
 
   /* Free memory */
   for (i = 0; i < numships; i++)
     for (j = 0; j < numinstants[i]; j++)
       free(trip_instants[i].instants[j]);
+
+  for (i = 0; i < numships; i++)
+      free(tripOut[i]);
+
 
   /* Close the file */
   fclose(file);
